@@ -6,18 +6,18 @@ window.AV_STORAGE_SUPABASE = {
 
   // Aliases de login usados na tela.
   // As senhas devem ser cadastradas somente no Supabase Auth.
-  adminEmail: "admin@seudominio.com",
-  developerEmail: "dev.gui@seudominio.com",
+  adminEmail: "admin@fiap.estoque.com.br",
+  developerEmail: "dev.gui@desenvolvedor.fiap.com.br",
 
   authUsers: {
     "admin": {
-      email: "admin@seudominio.com",
+      email: "admin@fiap.estoque.com.br",
       profileId: "admin",
       role: "Administrador",
       label: "Administrador T2"
     },
     "dev.gui": {
-      email: "dev.gui@seudominio.com",
+      email: "dev.gui@desenvolvedor.fiap.com.br",
       profileId: "dev.gui",
       role: "Desenvolvedor",
       label: "Desenvolvedor T1"
