@@ -1548,12 +1548,14 @@
                 selectedUserLogId: null,
                 usersFiltersOpen: false,
                 infraFilter: "all",
-                infraUnit: "all",
+                infraSearch: "",
+                infraUnit: 1,
                 users: seedUsers(),
                 inventory: structuredClone(DEFAULT_BOOTSTRAP.inventory || []),
                 movements: structuredClone(DEFAULT_BOOTSTRAP.movements || []),
                 infraRooms: structuredClone(DEFAULT_BOOTSTRAP.infraRooms || []),
                 settings: structuredClone(DEFAULT_BOOTSTRAP.settings || { threshold: 5, buyerEmail: "compras@suaempresa.com.br" }),
+                maintenanceRecords: structuredClone(DEFAULT_BOOTSTRAP.settings?.maintenanceRecords || []),
                 activityLogs: [],
                 purchaseNeeds: [],
             };
@@ -1990,7 +1992,10 @@
                 if (requestedKeys.includes("inventory")) payload.inventory = state.inventory;
                 if (requestedKeys.includes("movements")) payload.movements = state.movements;
                 if (requestedKeys.includes("infraRooms")) payload.infraRooms = state.infraRooms;
-                if (requestedKeys.includes("settings")) payload.settings = state.settings;
+                if (requestedKeys.includes("settings")) {
+                    syncMaintenanceSettings();
+                    payload.settings = state.settings;
+                }
                 if (requestedKeys.includes("activityLogs")) payload.activityLogs = state.activityLogs;
                 return payload;
             };
@@ -2052,6 +2057,7 @@
                 if (!log) return null;
                 if (log.section === "inventory" && log.action === "create") return "Um item foi adicionado.";
                 if (log.section === "inventory" && ["in", "out", "edit", "delete", "movement", "update"].includes(log.action)) return "O estoque foi atualizado.";
+                if (log.section === "maintenance") return "A manutencao foi atualizada.";
                 if (log.section === "infra") return "Uma sala foi notificada.";
                 if (log.section === "users") return "As permissões de um usuário foram atualizadas.";
                 if (log.section === "purchases") return "Uma requisição foi atualizada.";
@@ -2093,10 +2099,13 @@
                 if (!payload || typeof payload !== "object") return;
                 const previousLogs = Array.isArray(state.activityLogs) ? [...state.activityLogs] : [];
                 if (Array.isArray(payload.users)) state.users = payload.users.map((user) => ({ ...user, role: normalizeRole(user.role) }));
-                if (Array.isArray(payload.inventory)) state.inventory = payload.inventory;
+                if (Array.isArray(payload.inventory)) state.inventory = normalizeInventoryItems(payload.inventory);
                 if (Array.isArray(payload.movements)) state.movements = payload.movements;
                 if (Array.isArray(payload.infraRooms)) state.infraRooms = normalizeInfraRooms(payload.infraRooms);
-                if (payload.settings && typeof payload.settings === "object") state.settings = payload.settings;
+                if (payload.settings && typeof payload.settings === "object") {
+                    state.settings = payload.settings;
+                    state.maintenanceRecords = normalizeMaintenanceRecords(state.settings.maintenanceRecords || []);
+                }
                 if (Array.isArray(payload.activityLogs)) state.activityLogs = payload.activityLogs;
                 syncSessionDisplayName();
                 syncLocalCaches();
@@ -2260,13 +2269,22 @@
             };
 
             const getEquipmentQualityKey = (key) => `${key}Quality`;
-            const getQualityMeta = (value) => QUALITY_META[value] || QUALITY_META.absent;
+            const normalizeEquipmentQuality = (value, fallback = "absent") => {
+                const normalized = normalizeComparableName(value || "");
+                const compact = normalized.replace(/[^a-z0-9]/g, "");
+                if (["good", "ok", "bom", "boa", "verde", "green", "funcionando"].includes(normalized) || compact === "embomestado") return "good";
+                if (["keep", "warning", "warn", "yellow", "amarelo"].includes(normalized) || compact.includes("manter") || compact.includes("atencao")) return "keep";
+                if (["replace", "danger", "critical", "red", "vermelho"].includes(normalized) || compact.includes("trocar") || compact.includes("substituir")) return "replace";
+                if (["absent", "none", "missing", "cinza", "ausente", "sem", "vazio"].includes(normalized)) return "absent";
+                return fallback;
+            };
+            const getQualityMeta = (value) => QUALITY_META[normalizeEquipmentQuality(value)] || QUALITY_META.absent;
             const ensureRoomEquipmentState = (room) => {
                 if (!room.equip) room.equip = {};
                 EQUIPMENT_CONFIG.forEach(({ key }) => {
                     if (typeof room.equip[key] !== "string") room.equip[key] = "";
                     const qualityKey = getEquipmentQualityKey(key);
-                    if (!room.equip[qualityKey]) room.equip[qualityKey] = room.equip[key] ? "good" : "absent";
+                    room.equip[qualityKey] = normalizeEquipmentQuality(room.equip[qualityKey], room.equip[key] ? "good" : "absent");
                 });
                 if (typeof room.equip.obs !== "string") room.equip.obs = "";
                 room.equip.obsLevel = computeRoomObsLevel(room);
@@ -2275,7 +2293,7 @@
             const normalizeInfraRooms = (rooms) => (Array.isArray(rooms) ? rooms.map((room) => ensureRoomEquipmentState(room)) : []);
             const getRoomEquipmentEntries = (room) =>
                 EQUIPMENT_CONFIG.map((config) => {
-                    const quality = room.equip[getEquipmentQualityKey(config.key)] || (room.equip[config.key] ? "good" : "absent");
+                    const quality = normalizeEquipmentQuality(room.equip[getEquipmentQualityKey(config.key)], room.equip[config.key] ? "good" : "absent");
                     return {
                         ...config,
                         value: room.equip[config.key] || "",
@@ -2431,9 +2449,7 @@
             const getActionIcon = (name) => INLINE_ACTION_ICONS[name] || "";
             const updatePermissionsUI = () => {
                 const usersBtn = document.getElementById("nav-users");
-                const settingsBtn = document.getElementById("nav-settings");
                 if (usersBtn) usersBtn.classList.toggle("hidden", !canAccessUsersView());
-                if (settingsBtn) settingsBtn.classList.toggle("hidden", !canAccessSettings());
             };
 
             // --- SISTEMA DE LOGIN E AUTENTICAÇÃO ---
@@ -2837,31 +2853,42 @@
 
             // --- COMPUTAR DADOS ---
             const computeData = () => {
+                state.inventory = normalizeInventoryItems(state.inventory);
                 state.inventory.forEach((i) => {
                     i.status = i.quantity === 0 ? "zero" : i.quantity <= state.settings.threshold ? "low" : "ok";
                 });
                 state.infraRooms = normalizeInfraRooms(state.infraRooms);
+                syncMaintenanceSettings();
                 state.purchaseNeeds = state.inventory.filter((i) => i.manualPurchaseQty > 0).sort((a, b) => b.manualPurchaseQty * b.price - a.manualPurchaseQty * a.price);
 
                 const b = document.getElementById("badge-purchases");
-                if (!b) return;
-                if (state.purchaseNeeds.length > 0) {
+                if (b && state.purchaseNeeds.length > 0) {
                     b.innerText = state.purchaseNeeds.length;
                     b.classList.remove("hidden");
-                } else {
+                } else if (b) {
                     b.classList.add("hidden");
+                }
+                const maintenanceBadge = document.getElementById("badge-maintenance");
+                const lateMaintenance = state.maintenanceRecords.filter((record) => record.status !== "returned" && isMaintenanceLate(record)).length;
+                if (maintenanceBadge && lateMaintenance > 0) {
+                    maintenanceBadge.innerText = lateMaintenance;
+                    maintenanceBadge.classList.remove("hidden");
+                } else if (maintenanceBadge) {
+                    maintenanceBadge.classList.add("hidden");
                 }
             };
 
             // --- NAVEGAÇÃO ---
             window.switchView = (viewId, itemId = null) => {
                 if (viewId === "users") viewId = "dashboard";
+                if (viewId === "settings") viewId = "dashboard";
                 state.currentView = viewId;
                 if (itemId) state.selectedItem = state.inventory.find((i) => i.id === itemId);
 
                 if (viewId === "settings" && !requirePermission(canAccessSettings(), "Somente operadores, desenvolvedores e administradores acessam Configurações.")) return;
+                if (viewId === "infra" && ![1, 2, 3].includes(Number(state.infraUnit))) state.infraUnit = 1;
 
-                const views = ["dashboard", "inventory", "purchases", "infra", "insights", "settings", "detail"];
+                const views = ["dashboard", "inventory", "purchases", "maintenance", "infra", "insights", "detail"];
                 views.forEach((v) => {
                     const el = document.getElementById(`view-${v}`);
                     if (el) el.classList.add("hidden");
@@ -2881,9 +2908,9 @@
                     dashboard: ["Painel Geral", "Monitoramento estratégico de ativos."],
                     inventory: ["Inventário Ativo", "Controle total da base física."],
                     purchases: ["Requisições", "Gestão de compras e orçamentos."],
+                    maintenance: ["Manutencao", "Controle de itens enviados para manutencao."],
                     infra: ["Infraestrutura", "Distribuição unificada de equipamentos por salas."],
                     insights: ["Analíticos", "Visão econômica e financeira do patrimônio."],
-                    settings: ["Configurações", "Regras globais e preferências."],
                     detail: ["Ficha de Ativo", "Informação detalhada e histórico completo."],
                 };
 
@@ -2932,10 +2959,10 @@
                 if (state.currentView === "dashboard") renderDashboard();
                 if (state.currentView === "inventory") renderInventory();
                 if (state.currentView === "purchases") renderPurchases();
+                if (state.currentView === "maintenance") renderMaintenance();
                 if (state.currentView === "infra") renderInfra();
                 if (state.currentView === "users") renderUsers();
                 if (state.currentView === "insights") renderInsights();
-                if (state.currentView === "settings") renderSettingsPage();
                 if (state.currentView === "detail") renderDetail();
 
                 // Sempre invoca a criação de ícones após qualquer alteração visual no DOM
@@ -2987,7 +3014,9 @@
                     "shopping-cart": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2h3l2.68 12.39A2 2 0 0 0 9.68 16H19a2 2 0 0 0 1.95-1.57L23 6H6"></path></svg>`,
                     "users": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6"></path><path d="M23 11h-6"></path></svg>`,
                     "shield-check": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"></path><path d="m9 12 2 2 4-4"></path></svg>`,
-                    "user-check": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="m17 11 2 2 4-4"></path></svg>`
+                    "user-check": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="m17 11 2 2 4-4"></path></svg>`,
+                    "wrench": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><path d="M14.7 6.3a4 4 0 0 0-5 5L3 18v3h3l6.7-6.7a4 4 0 0 0 5-5l-2.4 2.4-3-3 2.4-2.4Z"></path></svg>`,
+                    "timer": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}"><path d="M10 2h4"></path><path d="M12 14v-4"></path><path d="M4 13a8 8 0 1 0 8-8"></path></svg>`
                 };
                 return icons[icon] || `<span class="${cls}"></span>`;
             };
@@ -3002,6 +3031,233 @@
                     .filter((entry) => entry.itemId === itemId && entry.type === "out")
                     .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
                 return move ? resolveActorLabel(move, "—") : "—";
+            };
+
+            const createAssetUnit = (data = {}, index = 0) => {
+                const patrimony = String(data.patrimony ?? data.patrimonio ?? data.assetTag ?? "").trim();
+                const serialNumber = String(data.serialNumber ?? data.serial ?? data.numeroSerie ?? "").trim();
+                const noIdentifier = Boolean(data.noIdentifier || data.isNull || data.nullIdentifier || (!patrimony && !serialNumber));
+                return {
+                    id: String(data.id || `asset-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`),
+                    patrimony: noIdentifier ? "" : patrimony,
+                    serialNumber: noIdentifier ? "" : serialNumber,
+                    noIdentifier,
+                    createdAt: data.createdAt || new Date().toISOString(),
+                };
+            };
+
+            const getAssetUnits = (item, options = {}) => {
+                if (!item) return [];
+                if (!item.metadata || typeof item.metadata !== "object") item.metadata = {};
+                const desiredQty = Math.max(0, Number(item.quantity || 0));
+                const rawUnits = Array.isArray(item.metadata.assetUnits) ? item.metadata.assetUnits : [];
+                let units = rawUnits.map((unit, index) => createAssetUnit(unit, index));
+                if (options.matchQuantity !== false) {
+                    while (units.length < desiredQty) units.push(createAssetUnit({ noIdentifier: true }, units.length));
+                    if (units.length > desiredQty) units = units.slice(0, desiredQty);
+                }
+                item.metadata.assetUnits = units;
+                return units;
+            };
+
+            const normalizeInventoryItems = (items) => (Array.isArray(items) ? items.map((item) => {
+                if (!item.metadata || typeof item.metadata !== "object") item.metadata = {};
+                item.quantity = Math.max(0, Number(item.quantity || 0));
+                getAssetUnits(item);
+                return item;
+            }) : []);
+
+            const getAssetIdentityStats = (item) => {
+                const units = getAssetUnits(item);
+                const identified = units.filter((unit) => !unit.noIdentifier && (unit.patrimony || unit.serialNumber)).length;
+                return { total: units.length, identified, nullCount: units.length - identified };
+            };
+
+            const getAssetIdentitySummary = (item) => {
+                const stats = getAssetIdentityStats(item);
+                if (!stats.total) return "Sem unidades em estoque";
+                if (!stats.identified) return `${stats.total} sem patrimonio/serie`;
+                return `${stats.identified}/${stats.total} identificadas${stats.nullCount ? `, ${stats.nullCount} nulas` : ""}`;
+            };
+
+            const renderAssetIdentityRows = (quantity, units = []) => {
+                const qty = Math.max(0, Number(quantity || 0));
+                if (!qty) {
+                    return `<div class="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-4 text-center text-xs font-bold text-zinc-500">Nenhuma unidade para identificar.</div>`;
+                }
+                return `
+                    <div class="rounded-[1.4rem] border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-black/40 p-4 space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Patrimonio / Numero de serie</p>
+                                <p class="text-xs font-semibold text-zinc-500 mt-1">Preencha por unidade ou marque como nulo.</p>
+                            </div>
+                            <button type="button" onclick="setAllAssetIdentityNull()" class="rounded-xl border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:border-yellow-400 transition-colors">Todos nulos</button>
+                        </div>
+                        <div class="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                            ${Array.from({ length: qty }).map((_, index) => {
+                                const unit = createAssetUnit(units[index] || { noIdentifier: true }, index);
+                                return `
+                                    <div data-asset-row data-asset-id="${escapeHtml(unit.id)}" class="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3">
+                                        <div class="mb-3 flex items-center justify-between gap-3">
+                                            <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Unidade ${index + 1}</span>
+                                            <label class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                                <input type="checkbox" data-asset-null class="rounded border-zinc-300 text-yellow-400 focus:ring-yellow-400" ${unit.noIdentifier ? "checked" : ""} onchange="toggleAssetIdentityNull(this)" />
+                                                Nulo
+                                            </label>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <input data-asset-patrimony value="${escapeHtml(unit.patrimony)}" ${unit.noIdentifier ? "disabled" : ""} placeholder="Patrimonio" class="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black p-3 text-sm font-bold outline-none focus:border-yellow-400 disabled:opacity-50" />
+                                            <input data-asset-serial value="${escapeHtml(unit.serialNumber)}" ${unit.noIdentifier ? "disabled" : ""} placeholder="Numero de serie" class="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black p-3 text-sm font-bold outline-none focus:border-yellow-400 disabled:opacity-50" />
+                                        </div>
+                                    </div>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                `;
+            };
+
+            window.renderAssetIdentityFields = (quantityInputId = "f-qty") => {
+                const container = document.getElementById("asset-identity-fields");
+                if (!container) return;
+                const qty = parseInt(document.getElementById(quantityInputId)?.value || "0") || 0;
+                const currentRows = document.querySelectorAll("[data-asset-row]").length;
+                const currentUnits = currentRows ? readAssetIdentityRows(currentRows) : [];
+                container.innerHTML = renderAssetIdentityRows(qty, currentUnits);
+            };
+
+            window.toggleAssetIdentityNull = (checkbox) => {
+                const row = checkbox?.closest?.("[data-asset-row]");
+                if (!row) return;
+                const isNull = Boolean(checkbox.checked);
+                row.querySelectorAll("[data-asset-patrimony], [data-asset-serial]").forEach((input) => {
+                    input.disabled = isNull;
+                    if (isNull) input.value = "";
+                });
+            };
+
+            window.setAllAssetIdentityNull = () => {
+                document.querySelectorAll("[data-asset-row]").forEach((row) => {
+                    const checkbox = row.querySelector("[data-asset-null]");
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        window.toggleAssetIdentityNull(checkbox);
+                    }
+                });
+            };
+
+            const readAssetIdentityRows = (expectedQty = 0) => {
+                const rows = Array.from(document.querySelectorAll("[data-asset-row]"));
+                const units = rows.slice(0, expectedQty).map((row, index) => {
+                    const patrimony = String(row.querySelector("[data-asset-patrimony]")?.value || "").trim();
+                    const serialNumber = String(row.querySelector("[data-asset-serial]")?.value || "").trim();
+                    const noIdentifier = Boolean(row.querySelector("[data-asset-null]")?.checked || (!patrimony && !serialNumber));
+                    return createAssetUnit({ id: row.dataset.assetId, patrimony, serialNumber, noIdentifier }, index);
+                });
+                while (units.length < expectedQty) units.push(createAssetUnit({ noIdentifier: true }, units.length));
+                return units;
+            };
+
+            const appendAssetUnitsToItem = (item, units = []) => {
+                const current = getAssetUnits(item, { matchQuantity: false });
+                item.metadata.assetUnits = [...current, ...units.map((unit, index) => createAssetUnit(unit, current.length + index))];
+            };
+
+            const removeAssetUnitsFromItem = (item, quantity = 0) => {
+                const units = getAssetUnits(item, { matchQuantity: false });
+                const removed = units.splice(Math.max(0, units.length - quantity), quantity);
+                item.metadata.assetUnits = units;
+                return removed;
+            };
+
+            const todayDateOnly = () => new Date().toISOString().slice(0, 10);
+            const parseDateOnly = (value) => {
+                if (!value) return null;
+                const date = new Date(`${value}T00:00:00`);
+                return Number.isNaN(date.getTime()) ? null : date;
+            };
+            const formatDateOnly = (value) => {
+                const date = parseDateOnly(value);
+                return date ? date.toLocaleDateString("pt-BR") : "Sem data";
+            };
+            const getMaintenanceDelayDays = (record) => {
+                if (!record || record.status === "returned" || !record.returnDate) return 0;
+                const expected = parseDateOnly(record.returnDate);
+                const today = parseDateOnly(todayDateOnly());
+                if (!expected || !today || today <= expected) return 0;
+                return Math.ceil((today - expected) / 86400000);
+            };
+            const isMaintenanceLate = (record) => getMaintenanceDelayDays(record) > 0;
+            const normalizeMaintenanceRecords = (records = []) => (Array.isArray(records) ? records.map((record, index) => {
+                const item = state.inventory.find((entry) => String(entry.id) === String(record.itemId));
+                return {
+                    id: String(record.id || `maint-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`),
+                    itemId: String(record.itemId || ""),
+                    itemName: String(record.itemName || item?.name || "Item removido"),
+                    category: String(record.category || item?.category || "Outros"),
+                    assetUnitId: String(record.assetUnitId || ""),
+                    assetIndex: Number(record.assetIndex || 0),
+                    patrimony: String(record.patrimony || record.patrimonio || ""),
+                    serialNumber: String(record.serialNumber || record.serial || ""),
+                    noIdentifier: Boolean(record.noIdentifier || (!record.patrimony && !record.patrimonio && !record.serialNumber && !record.serial)),
+                    sentDate: String(record.sentDate || todayDateOnly()).slice(0, 10),
+                    returnDate: String(record.returnDate || "").slice(0, 10),
+                    notes: String(record.notes || ""),
+                    delayEffect: String(record.delayEffect || ""),
+                    status: record.status === "returned" ? "returned" : "active",
+                    returnedAt: record.returnedAt || null,
+                    createdAt: record.createdAt || new Date().toISOString(),
+                    createdBy: String(record.createdBy || ""),
+                };
+            }) : []);
+            const syncMaintenanceSettings = () => {
+                if (!state.settings || typeof state.settings !== "object") state.settings = {};
+                state.maintenanceRecords = normalizeMaintenanceRecords(state.maintenanceRecords || state.settings.maintenanceRecords || []);
+                state.settings.maintenanceRecords = state.maintenanceRecords;
+                return state.maintenanceRecords;
+            };
+            const getMaintenanceStatusBadge = (record) => {
+                if (record.status === "returned") return '<span class="px-2 py-1 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-black uppercase tracking-widest">Retornou</span>';
+                if (isMaintenanceLate(record)) return '<span class="px-2 py-1 rounded-md bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest">Atrasado</span>';
+                return '<span class="px-2 py-1 rounded-md bg-yellow-400/10 text-yellow-600 dark:text-yellow-300 text-[10px] font-black uppercase tracking-widest">Em manutencao</span>';
+            };
+            const getMaintenanceUnitOptionsHtml = (itemId) => {
+                const item = state.inventory.find((entry) => String(entry.id) === String(itemId));
+                if (!item) return '<option value="">Selecione um item primeiro</option>';
+                const units = getAssetUnits(item);
+                if (!units.length) return '<option value="null">Sem unidades em estoque</option>';
+                return units.map((unit, index) => {
+                    const label = unit.noIdentifier
+                        ? `Unidade ${index + 1} - patrimonio/serie nulos`
+                        : `Unidade ${index + 1} - ${unit.patrimony || "sem patrimonio"} / ${unit.serialNumber || "sem serie"}`;
+                    return `<option value="${escapeHtml(unit.id)}">${escapeHtml(label)}</option>`;
+                }).join("");
+            };
+            const resolveMaintenanceUnit = (item, unitId) => {
+                const units = getAssetUnits(item);
+                const index = Math.max(0, units.findIndex((unit) => String(unit.id) === String(unitId)));
+                const unit = units[index] || createAssetUnit({ noIdentifier: true }, 0);
+                return { unit, index };
+            };
+
+            window.refreshMaintenanceUnitOptions = () => {
+                const itemId = document.getElementById("f-maint-item")?.value || "";
+                const select = document.getElementById("f-maint-unit");
+                if (select) select.innerHTML = getMaintenanceUnitOptionsHtml(itemId);
+            };
+
+            window.completeMaintenance = (recordId) => {
+                const record = state.maintenanceRecords.find((entry) => entry.id === recordId);
+                if (!record) return;
+                record.status = "returned";
+                record.returnedAt = new Date().toISOString();
+                if (!record.returnDate) record.returnDate = todayDateOnly();
+                syncMaintenanceSettings();
+                logActivity({ section: "maintenance", action: "return", message: `${getActorName()} marcou retorno de ${record.itemName}.` });
+                queueRemoteStatePersist("settings", "activityLogs");
+                renderMaintenance();
+                showToast("Retorno registrado.");
             };
 
             // --- DASHBOARD ---
@@ -3135,7 +3391,7 @@
                 container.innerHTML = feed
                     .map(
                         (f) => `
-                    <div onclick="executeRadarAction('${f.type}', '${f.id}', '${f.param}')" class="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 hover:border-yellow-400/50 cursor-pointer transition-colors group">
+                    <div onclick="executeRadarAction('${f.type}', '${f.id}', '${f.param}')" class="interactive-surface flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 hover:border-yellow-400/50 cursor-pointer transition-colors group">
                         <div class="flex items-center space-x-4">
                             <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${f.bg} ${f.color}">
                                 ${getDashboardIconSvg(f.icon, "w-5 h-5")}
@@ -3153,7 +3409,7 @@
             };
 
             const renderStatCard = (title, val, icon, colorClass) => `
-                <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl shadow-sm hover:border-yellow-400/50 transition-colors">
+                <div class="interactive-surface bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl shadow-sm hover:border-yellow-400/50 transition-colors">
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-10 h-10 ${colorClass} rounded-xl flex items-center justify-center">${getDashboardIconSvg(icon, "w-5 h-5")}</div>
                     </div>
@@ -3167,7 +3423,11 @@
             // --- INVENTORY ---
             const renderInventory = () => {
                 const query = document.getElementById("inventory-search")?.value.toLowerCase() || "";
-                let filtered = state.inventory.filter((i) => i.name.toLowerCase().includes(query) || i.category.toLowerCase().includes(query));
+                state.inventory = normalizeInventoryItems(state.inventory);
+                let filtered = state.inventory.filter((i) => {
+                    const assetText = getAssetUnits(i).map((unit) => `${unit.patrimony} ${unit.serialNumber}`).join(" ").toLowerCase();
+                    return i.name.toLowerCase().includes(query) || i.category.toLowerCase().includes(query) || assetText.includes(query);
+                });
 
                 // Sort by name A-Z
                 filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -3186,7 +3446,10 @@
 
                 tbody.innerHTML = filtered
                     .map(
-                        (item, idx) => `
+                        (item, idx) => {
+                            const stats = getAssetIdentityStats(item);
+                            const sampleUnits = getAssetUnits(item).filter((unit) => !unit.noIdentifier && (unit.patrimony || unit.serialNumber)).slice(0, 2);
+                            return `
                     <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group cursor-pointer" onclick="switchView('detail', '${item.id}')">
                         <td class="px-6 py-4">
                             <div class="flex items-start space-x-3">
@@ -3198,13 +3461,20 @@
                             </div>
                         </td>
                         <td class="px-6 py-4"><span class="text-[10px] font-black uppercase bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 px-2 py-1 rounded-md tracking-wider">${item.category}</span></td>
+                        <td class="px-6 py-4">
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-black uppercase tracking-widest ${stats.identified ? "text-green-600 dark:text-green-400" : "text-zinc-400"}">${getAssetIdentitySummary(item)}</span>
+                                ${sampleUnits.length ? `<div class="text-[10px] font-bold text-zinc-500">${sampleUnits.map((unit) => `${unit.patrimony || "sem pat."} / ${unit.serialNumber || "sem serie"}`).join("<br>")}</div>` : ""}
+                            </div>
+                        </td>
                         <td class="px-6 py-4 font-black text-lg ${item.quantity === 0 ? "text-red-500" : "text-zinc-900 dark:text-white"}">${item.quantity}</td>
                         <td class="px-6 py-4">${getStatusBadge(item.status)}</td>
                         <td class="px-6 py-4 text-right">
                             ${canEditInventory() ? `<div class="inline-flex items-center gap-1"><button type="button" data-open-modal="in" data-item-id="${item.id}" class="p-2 bg-green-500/10 text-green-600 dark:text-green-500 hover:bg-green-500/20 rounded-lg transition-colors" title="Entrada"><i data-lucide="arrow-down-left" class="w-4 h-4"></i></button><button type="button" data-open-modal="out" data-item-id="${item.id}" class="p-2 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/20 rounded-lg transition-colors" title="Saída"><i data-lucide="arrow-up-right" class="w-4 h-4"></i></button><button type="button" data-open-modal="delete" data-item-id="${item.id}" class="p-2 bg-red-500/10 text-red-600 dark:text-red-500 hover:bg-red-500/20 rounded-lg transition-colors" title="Apagar"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Leitura</span>`}
                         </td>
                     </tr>
-                `,
+                `;
+                        },
                     )
                     .join("");
             };
@@ -3398,7 +3668,7 @@
                 container.innerHTML = state.purchaseNeeds
                     .map(
                         (item, idx) => `
-                    <div draggable="true" ondragstart="handleDragStart(event, '${item.id}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${item.id}')" ondragend="handleDragEnd(event)" class="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-5 rounded-[2rem] flex items-center justify-between group hover:border-yellow-400 transition-all cursor-grab active:cursor-grabbing">
+                    <div draggable="true" ondragstart="handleDragStart(event, '${item.id}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${item.id}')" ondragend="handleDragEnd(event)" class="interactive-surface bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-5 rounded-[2rem] flex items-center justify-between group hover:border-yellow-400 transition-all cursor-grab active:cursor-grabbing">
                         <div class="flex items-center space-x-6">
                             <div class="text-zinc-300 dark:text-zinc-700 ml-2"><i data-lucide="grip-vertical" class="w-5 h-5"></i></div>
                             <div class="w-14 h-14 bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 flex items-center justify-center rounded-2xl font-black text-2xl">${item.manualPurchaseQty}</div>
@@ -3470,38 +3740,173 @@
                 if (window.lucide) lucide.createIcons();
             };
 
+            const renderMaintenance = () => {
+                syncMaintenanceSettings();
+                const container = document.getElementById("maintenance-container");
+                const statsEl = document.getElementById("maintenance-stats");
+                if (!container || !statsEl) return;
+
+                document.getElementById("maintenance-add-btn")?.classList.toggle("hidden", !canEditInventory());
+
+                const total = state.maintenanceRecords.length;
+                const active = state.maintenanceRecords.filter((record) => record.status !== "returned").length;
+                const late = state.maintenanceRecords.filter((record) => record.status !== "returned" && isMaintenanceLate(record)).length;
+                statsEl.innerHTML = `
+                    ${renderStatCard("Total enviados", total, "wrench", "bg-blue-500/10 text-blue-500")}
+                    ${renderStatCard("Em manutencao", active, "timer", "bg-yellow-400/10 text-yellow-500")}
+                    ${renderStatCard("Atrasados", late, "alert-triangle", "bg-red-500/10 text-red-500")}
+                `;
+
+                const records = [...state.maintenanceRecords].sort((a, b) => {
+                    const lateDiff = Number(isMaintenanceLate(b)) - Number(isMaintenanceLate(a));
+                    if (lateDiff) return lateDiff;
+                    return new Date(b.sentDate || b.createdAt) - new Date(a.sentDate || a.createdAt);
+                });
+
+                if (!records.length) {
+                    container.innerHTML = `
+                        <div class="xl:col-span-2 p-16 text-center text-zinc-400 font-bold uppercase tracking-widest text-xs border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2.5rem]">
+                            Nenhum item enviado para manutencao.
+                        </div>
+                    `;
+                    refreshIcons();
+                    return;
+                }
+
+                container.innerHTML = records.map((record) => {
+                    const lateDays = getMaintenanceDelayDays(record);
+                    const identity = record.noIdentifier ? "Patrimonio/serie nulos" : `${record.patrimony || "sem patrimonio"} / ${record.serialNumber || "sem serie"}`;
+                    return `
+                        <div class="interactive-surface rounded-[2rem] border ${lateDays ? "border-red-500/60 bg-red-500/[0.03]" : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"} p-6 shadow-sm relative overflow-hidden">
+                            ${lateDays ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500 animate-pulse"></div>` : `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-400"></div>`}
+                            <div class="pl-2 space-y-5">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                                            ${getMaintenanceStatusBadge(record)}
+                                            <span class="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px] font-black uppercase tracking-widest">${escapeHtml(record.category)}</span>
+                                        </div>
+                                        <h3 class="text-lg font-black text-zinc-900 dark:text-white">${escapeHtml(record.itemName)}</h3>
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-1">${escapeHtml(identity)}</p>
+                                    </div>
+                                    ${record.status !== "returned" && canEditInventory() ? `<button onclick="completeMaintenance('${record.id}')" class="px-3 py-2 rounded-xl bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-white transition-colors">Retornou</button>` : ""}
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/70 dark:bg-black/30">
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data de ida</p>
+                                        <p class="text-sm font-black mt-1">${formatDateOnly(record.sentDate)}</p>
+                                    </div>
+                                    <div class="rounded-2xl border ${lateDays ? "border-red-500/40 bg-red-500/5" : "border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-black/30"} p-3">
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data de volta</p>
+                                        <p class="text-sm font-black mt-1">${formatDateOnly(record.returnDate)}</p>
+                                        ${lateDays ? `<p class="text-[10px] font-black uppercase tracking-widest text-red-500 mt-1">${lateDays} dia${lateDays === 1 ? "" : "s"} de atraso</p>` : ""}
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Observacoes</p>
+                                        <p class="text-sm font-semibold text-zinc-600 dark:text-zinc-300 leading-relaxed">${escapeHtml(record.notes || "Sem observacoes.")}</p>
+                                    </div>
+                                    <div class="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-3">
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-300 mb-1">Efeito de atraso</p>
+                                        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200 leading-relaxed">${escapeHtml(record.delayEffect || "Nao informado.")}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+                refreshIcons();
+            };
+
             // --- INFRA ---
-            window.switchInfraTab = (u) => {
-                state.infraUnit = parseInt(u);
+            const INFRA_FILTERS = ["all", "attention", "keep", "replace"];
+            const getActiveInfraUnit = () => {
+                const unit = Number(state.infraUnit);
+                return [1, 2, 3].includes(unit) ? unit : 1;
+            };
+            const syncInfraTabButtons = () => {
+                state.infraUnit = getActiveInfraUnit();
                 const activeClass = "px-8 py-2.5 rounded-lg font-bold text-sm transition-all bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm whitespace-nowrap";
                 const inactiveClass = "px-8 py-2.5 rounded-lg font-bold text-sm transition-all text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white whitespace-nowrap";
 
                 document.getElementById("tab-unit-1").className = state.infraUnit === 1 ? activeClass : inactiveClass;
                 document.getElementById("tab-unit-2").className = state.infraUnit === 2 ? activeClass : inactiveClass;
                 document.getElementById("tab-unit-3").className = state.infraUnit === 3 ? activeClass : inactiveClass;
+            };
+            const roomMatchesInfraStatus = (room, filter = state.infraFilter) => {
+                const qualities = getRoomEquipmentEntries(room).map((entry) => entry.quality);
+                if (filter === "replace") return qualities.includes("replace");
+                if (filter === "keep") return qualities.includes("keep");
+                if (filter === "attention") return qualities.some((quality) => ["keep", "replace"].includes(quality));
+                return true;
+            };
+            const roomMatchesInfraSearch = (room) => {
+                const query = normalizeComparableName(state.infraSearch || "");
+                if (!query) return true;
+                const entries = getRoomEquipmentEntries(room);
+                const haystack = [
+                    room.name,
+                    room.floor,
+                    room.unit === 3 ? "setores" : `unidade ${room.unit}`,
+                    room.equip?.obs,
+                    ...entries.flatMap((entry) => [entry.label, entry.short, entry.value, entry.meta.label]),
+                ]
+                    .map((value) => normalizeComparableName(value || ""))
+                    .join(" ");
+                return haystack.includes(query);
+            };
+            const getInfraRoomsForActiveUnit = () => {
+                state.infraUnit = getActiveInfraUnit();
+                return state.infraRooms.filter((room) => Number(room.unit) === state.infraUnit);
+            };
+            window.switchInfraTab = (u) => {
+                const unit = Number(u);
+                state.infraUnit = [1, 2, 3].includes(unit) ? unit : 1;
+                syncInfraTabButtons();
                 renderInfra();
                 if (window.lucide) lucide.createIcons();
             };
 
             const roomMatchesInfraFilter = (room) => {
-                const qualities = getRoomEquipmentEntries(room).map((entry) => entry.quality);
-                if (state.infraFilter === "replace") return qualities.includes("replace");
-                if (state.infraFilter === "keep") return qualities.includes("keep");
-                if (state.infraFilter === "attention") return qualities.some((quality) => ["keep", "replace"].includes(quality));
-                return true;
+                return roomMatchesInfraStatus(room) && roomMatchesInfraSearch(room);
             };
 
             const updateInfraFilterButtons = () => {
-                ["all", "attention", "keep", "replace"].forEach((filter) => {
+                const baseRooms = getInfraRoomsForActiveUnit().filter(roomMatchesInfraSearch);
+                const counts = {
+                    all: baseRooms.length,
+                    attention: baseRooms.filter((room) => roomMatchesInfraStatus(room, "attention")).length,
+                    keep: baseRooms.filter((room) => roomMatchesInfraStatus(room, "keep")).length,
+                    replace: baseRooms.filter((room) => roomMatchesInfraStatus(room, "replace")).length,
+                };
+                INFRA_FILTERS.forEach((filter) => {
                     const el = document.getElementById(`infra-filter-${filter}`);
                     if (!el) return;
                     const active = state.infraFilter === filter;
-                    el.className = `px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-colors ${active ? "border-yellow-400 bg-yellow-400 text-black" : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:border-yellow-400"}`;
+                    el.className = `infra-filter-chip inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${active ? "border-yellow-400 bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:border-yellow-400 hover:-translate-y-0.5"}`;
+                    const countEl = document.getElementById(`infra-filter-${filter}-count`);
+                    if (countEl) {
+                        countEl.textContent = counts[filter] ?? 0;
+                        countEl.className = `infra-filter-count min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[10px] ${active ? "bg-black/10 text-black" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"}`;
+                    }
                 });
             };
 
             window.setInfraFilter = (filter) => {
-                state.infraFilter = filter;
+                state.infraFilter = INFRA_FILTERS.includes(filter) ? filter : "all";
+                renderInfra();
+            };
+
+            window.setInfraSearch = (value) => {
+                state.infraSearch = String(value || "");
+                renderInfra();
+            };
+
+            window.clearInfraFilters = () => {
+                state.infraFilter = "all";
+                state.infraSearch = "";
+                setValueIfPresent("infra-search", "");
                 renderInfra();
             };
 
@@ -3555,8 +3960,10 @@
             };
 
             const renderInfra = () => {
+                syncInfraTabButtons();
+                setValueIfPresent("infra-search", state.infraSearch || "");
                 updateInfraFilterButtons();
-                const rooms = state.infraRooms.filter((r) => r.unit === state.infraUnit && roomMatchesInfraFilter(r));
+                const rooms = getInfraRoomsForActiveUnit().filter(roomMatchesInfraFilter);
 
                 const grouped = {};
                 rooms.forEach((r) => {
@@ -3574,7 +3981,17 @@
                 const container = document.getElementById("infra-content");
                 if (!container) return;
                 if (!floors.length) {
-                    container.innerHTML = `<div class="text-center text-zinc-500 py-10 font-semibold">Nenhuma sala encontrada para este filtro.</div>`;
+                    container.innerHTML = `
+                        <div class="interactive-surface rounded-3xl border border-dashed border-zinc-200 bg-white/80 p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80">
+                            <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-500">
+                                <i data-lucide="search-x" class="h-5 w-5"></i>
+                            </div>
+                            <p class="text-sm font-black uppercase tracking-widest text-zinc-400">Nenhuma sala encontrada</p>
+                            <p class="mt-2 text-sm font-semibold text-zinc-500">Ajuste a busca ou troque o filtro ativo.</p>
+                            <button onclick="clearInfraFilters()" class="mt-5 rounded-xl bg-yellow-400 px-5 py-3 text-xs font-black uppercase tracking-widest text-black transition-all hover:-translate-y-0.5 hover:bg-yellow-500">Limpar filtros</button>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
                     return;
                 }
 
@@ -3593,7 +4010,7 @@
                                         const statusIndicator = getRoomStatusIndicator(room);
 
                                         return `
-                                    <div id="room-${room.id}" class="bg-white dark:bg-zinc-900 border ${borderColor} p-5 rounded-2xl hover:border-yellow-400 transition-all duration-300 group relative shadow-sm">
+                                    <div id="room-${room.id}" class="interactive-surface room-card bg-white dark:bg-zinc-900 border ${borderColor} p-5 rounded-2xl hover:border-yellow-400 transition-all duration-300 group relative shadow-sm">
                                         <div class="flex justify-between items-start gap-3 mb-4">
                                             <div>
                                                 <h4 class="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-yellow-400 transition-colors">${room.name}</h4>
@@ -3664,17 +4081,17 @@
                 const topCat = Object.keys(catValues).reduce((a, b) => (catValues[a] > catValues[b] ? a : b));
 
                 setHtmlIfPresent("insights-stats", `
-                    <div class="bg-zinc-900 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
+                    <div class="interactive-surface bg-zinc-900 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
                         <i data-lucide="landmark" class="w-24 h-24 absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform"></i>
                         <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Capital Alocado</p>
                         <p class="text-3xl font-black relative z-10">R$ ${totalInvested.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                     </div>
-                    <div class="bg-yellow-400 text-black p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
+                    <div class="interactive-surface bg-yellow-400 text-black p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
                         <i data-lucide="receipt" class="w-24 h-24 absolute -right-6 -bottom-6 opacity-20 group-hover:scale-110 transition-transform"></i>
                         <p class="text-[10px] font-black uppercase tracking-widest text-yellow-900 mb-2">Despesa Projetada</p>
                         <p class="text-3xl font-black relative z-10">R$ ${committed.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                     </div>
-                    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2rem] shadow-sm relative overflow-hidden group">
+                    <div class="interactive-surface bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2rem] shadow-sm relative overflow-hidden group">
                         <i data-lucide="award" class="w-24 h-24 absolute -right-6 -bottom-6 opacity-[0.03] dark:opacity-5 group-hover:scale-110 transition-transform"></i>
                         <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Categoria Mais Valiosa</p>
                         <p class="text-3xl font-black text-zinc-900 dark:text-white relative z-10">${topCat}</p>
@@ -3754,6 +4171,8 @@
                 if (!item) return;
 
                 const hist = state.movements.filter((m) => m.itemId === item.id);
+                const assetUnits = getAssetUnits(item);
+                const assetStats = getAssetIdentityStats(item);
 
                 setHtmlIfPresent("detail-content", `
                     <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm flex justify-between items-start relative overflow-hidden">
@@ -3786,10 +4205,42 @@
                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Preço Base Unitário</p>
                                 <p class="text-2xl font-black pt-3">R$ ${item.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                             </div>
+                            <div class="col-span-2">
+                                <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Identificacao</p>
+                                <p class="text-xl font-black text-zinc-900 dark:text-white">${assetStats.identified}/${assetStats.total} unidades com patrimonio/serie</p>
+                                <p class="text-xs font-bold text-zinc-500 mt-1">${assetStats.nullCount} unidade${assetStats.nullCount === 1 ? "" : "s"} marcada${assetStats.nullCount === 1 ? "" : "s"} como nula${assetStats.nullCount === 1 ? "" : "s"}.</p>
+                            </div>
                             <div class="col-span-2 flex space-x-4">
                                 <button type="button" data-open-modal="in" data-item-id="${item.id}" class="flex-1 bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-yellow-600 transition-colors shadow-lg shadow-yellow-400/20 flex justify-center items-center"><i data-lucide="arrow-down-left" class="w-4 h-4 mr-2"></i> Registrar Entrada (+)</button>
                                 <button type="button" data-open-modal="out" data-item-id="${item.id}" class="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex justify-center items-center"><i data-lucide="arrow-up-right" class="w-4 h-4 mr-2"></i> Registrar Saída (-)</button>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] p-8 shadow-sm">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+                            <div>
+                                <h3 class="font-bold text-sm uppercase tracking-widest text-zinc-400">Patrimonios e numeros de serie</h3>
+                                <p class="text-xs font-semibold text-zinc-500 mt-1">Uma linha por unidade atualmente em estoque.</p>
+                            </div>
+                            <button type="button" data-open-modal="edit" data-item-id="${item.id}" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-black uppercase tracking-widest text-zinc-500 hover:border-yellow-400 transition-colors">Editar identificacao</button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            ${assetUnits.length ? assetUnits.map((unit, index) => `
+                                <div class="rounded-2xl border ${unit.noIdentifier ? "border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-black/30" : "border-green-500/20 bg-green-500/[0.04]"} p-4">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3">Unidade ${index + 1}</p>
+                                    <div class="space-y-2">
+                                        <div>
+                                            <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Patrimonio</p>
+                                            <p class="text-sm font-black text-zinc-900 dark:text-white">${unit.noIdentifier ? "Nulo" : (escapeHtml(unit.patrimony) || "Nao informado")}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Numero de serie</p>
+                                            <p class="text-sm font-black text-zinc-900 dark:text-white">${unit.noIdentifier ? "Nulo" : (escapeHtml(unit.serialNumber) || "Nao informado")}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join("") : `<div class="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-center text-sm font-bold text-zinc-500">Nenhuma unidade em estoque.</div>`}
                         </div>
                     </div>
 
@@ -3913,6 +4364,7 @@
             window.openModal = (type, id = null) => {
                 const inventoryAdminOnly = ["add", "edit", "delete", "in", "out"];
                 if (inventoryAdminOnly.includes(type) && !requirePermission(canEditInventory(), "Visitante tem acesso apenas de leitura no inventário.")) return;
+                if (type === "add-maintenance" && !requirePermission(canEditInventory(), "Somente operadores, desenvolvedores e administradores registram manutencao.")) return;
                 if (["add-purchase", "email-preview"].includes(type) && !requirePermission(canManagePurchases(), "Somente operadores, desenvolvedores e administradores gerenciam requisições.")) return;
                 if (type === "edit-room" && !requirePermission(canEditInfra(), "Somente operadores, desenvolvedores e administradores editam infraestrutura.")) return;
                 if (["user-add", "user-edit"].includes(type) && !requirePermission(canManageUsers(), "Somente administradores ou desenvolvedores gerenciam utilizadores.")) return;
@@ -3956,8 +4408,9 @@
                             ${!item ? `
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Estoque Inicial</label>
-                                <input id="f-initial-qty" type="number" value="" placeholder="0" min="0" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-black text-xl text-center" required />
+                                <input id="f-initial-qty" type="number" value="" placeholder="0" min="0" oninput="renderAssetIdentityFields('f-initial-qty')" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-black text-xl text-center" required />
                             </div>` : ""}
+                            <div id="asset-identity-fields">${renderAssetIdentityRows(item ? item.quantity : 0, item ? getAssetUnits(item) : [])}</div>
 ${getSessionActorMarkup("Usuário da sessão")}
                             <div class="pt-4">
                                 <button type="submit" class="w-full bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-yellow-400/20 hover:scale-[1.02] transition-transform">Salvar Dados</button>
@@ -3977,8 +4430,9 @@ ${getSessionActorMarkup("Usuário da sessão")}
                             </div>
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Quantidade</label>
-                                <input id="f-qty" type="number" min="1" placeholder="Qual a quantidade?" class="w-full p-4 bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-2xl outline-none focus:border-yellow-400 font-black text-center text-2xl" required />
+                                <input id="f-qty" type="number" min="1" placeholder="Qual a quantidade?" oninput="${type === "in" ? "renderAssetIdentityFields('f-qty')" : ""}" class="w-full p-4 bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-2xl outline-none focus:border-yellow-400 font-black text-center text-2xl" required />
                             </div>
+                            ${type === "in" ? `<div id="asset-identity-fields">${renderAssetIdentityRows(0)}</div>` : ""}
                             ${type === "out" ? `
 ${getSessionActorMarkup("Usuário da sessão")}` : `
 ${getSessionActorMarkup("Usuário da sessão")}`}
@@ -3996,7 +4450,8 @@ ${getSessionActorMarkup("Usuário da sessão")}`}
                             <p class="text-sm font-bold text-zinc-500 mt-2">${item.name}</p>
                         </div>
                         <form id="modal-form" class="space-y-4">
-                            <input id="f-qty" type="number" min="1" max="${type === "out" ? item.quantity : ""}" placeholder="Qual a quantidade?" class="w-full p-6 bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-2xl outline-none focus:border-yellow-400 text-3xl font-black text-center" required />
+                            <input id="f-qty" type="number" min="1" max="${type === "out" ? item.quantity : ""}" placeholder="Qual a quantidade?" oninput="${type === "in" ? "renderAssetIdentityFields('f-qty')" : ""}" class="w-full p-6 bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-2xl outline-none focus:border-yellow-400 text-3xl font-black text-center" required />
+                            ${type === "in" ? `<div id="asset-identity-fields">${renderAssetIdentityRows(0)}</div>` : ""}
                             ${type === "out" ? `
 ${getSessionActorMarkup("Usuário da sessão")}` : `
 ${getSessionActorMarkup("Usuário da sessão")}`}
@@ -4046,6 +4501,47 @@ ${getSessionActorMarkup("Usuário da sessão")}
                             <div class="pt-4">
                                 <button type="submit" class="w-full bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-yellow-400/20 hover:scale-[1.02] transition-transform">Adicionar à Lista</button>
                             </div>
+                        </form>
+                    `;
+                } else if (type === "add-maintenance") {
+                    title = "Adicionar item em manutencao";
+                    const stockItems = normalizeInventoryItems(state.inventory).filter((entry) => entry.quantity > 0).sort((a, b) => a.name.localeCompare(b.name));
+                    const firstItemId = stockItems[0]?.id || "";
+                    body = `
+                        <form id="modal-form" class="space-y-5">
+                            <div>
+                                <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Item do estoque</label>
+                                <select id="f-maint-item" onchange="refreshMaintenanceUnitOptions()" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-bold" required>
+                                    <option value="" disabled ${firstItemId ? "" : "selected"}>${firstItemId ? "Escolha um item..." : "Nenhum item disponivel em estoque"}</option>
+                                    ${stockItems.map((entry) => `<option value="${entry.id}" ${entry.id === firstItemId ? "selected" : ""}>${entry.name} (${entry.quantity} un.)</option>`).join("")}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Patrimonio / Numero de serie</label>
+                                <select id="f-maint-unit" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-bold" required>
+                                    ${getMaintenanceUnitOptionsHtml(firstItemId)}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Data de ida</label>
+                                    <input id="f-maint-sent" type="date" value="${todayDateOnly()}" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-bold" required />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Data de volta</label>
+                                    <input id="f-maint-return" type="date" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-bold" required />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Observacoes sobre o item</label>
+                                <textarea id="f-maint-notes" rows="3" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-400 font-semibold text-sm" placeholder="Defeito, fornecedor, condicao do item..."></textarea>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Efeito de atraso</label>
+                                <textarea id="f-maint-delay" rows="3" class="w-full bg-yellow-400/5 p-4 rounded-2xl border border-yellow-400/20 outline-none focus:border-yellow-400 font-semibold text-sm" placeholder="Impacto se o item nao voltar na data prevista..."></textarea>
+                            </div>
+                            ${getSessionActorMarkup("Usuario da sessao")}
+                            <button type="submit" class="w-full bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-yellow-400/20 hover:scale-[1.02] transition-transform">Enviar para manutencao</button>
                         </form>
                     `;
                 } else if (type === "email-preview") {
@@ -4177,13 +4673,20 @@ ${getSessionActorMarkup("Usuário da sessão")}
                     if (!item) return;
                     const q = parseInt(document.getElementById("f-qty")?.value || "0");
                     const removedBy = getActorName();
+                    if (q <= 0) {
+                        showToast("Informe uma quantidade válida.", "error");
+                        return;
+                    }
                     if (type === "out" && q > item.quantity) {
                         showToast("Erro: Quantidade insuficiente no estoque!", "error");
                         return;
                     }
+                    const movementAssetUnits = type === "in" ? readAssetIdentityRows(q) : removeAssetUnitsFromItem(item, q);
                     item.quantity = type === "in" ? item.quantity + q : Math.max(0, item.quantity - q);
+                    if (type === "in") appendAssetUnitsToItem(item, movementAssetUnits);
+                    getAssetUnits(item);
                     const userLog = getActorName();
-                    state.movements.unshift({ id: Date.now().toString(), itemId: targetId, type, quantity: q, user: userLog, removedBy: type === "out" ? removedBy : "", actorName: userLog, sessionName: userLog, date: new Date().toISOString() });
+                    state.movements.unshift({ id: Date.now().toString(), itemId: targetId, type, quantity: q, user: userLog, removedBy: type === "out" ? removedBy : "", actorName: userLog, sessionName: userLog, assetUnits: movementAssetUnits, date: new Date().toISOString() });
                     logActivity({ section: "inventory", action: type, actorId: userLog, message: type === "in" ? `${userLog} registrou entrada de ${q} un. em ${item.name}.` : `${userLog} registrou saída de ${q} un. em ${item.name}. Usuário da sessão: ${removedBy}.` });
                     if (type === "in") {
                         item.manualPurchaseQty = 0;
@@ -4199,6 +4702,8 @@ ${getSessionActorMarkup("Usuário da sessão")}
                     };
                     if (item) {
                         Object.assign(item, data);
+                        item.metadata = item.metadata && typeof item.metadata === "object" ? item.metadata : {};
+                        item.metadata.assetUnits = readAssetIdentityRows(item.quantity);
                         logActivity({ section: "inventory", action: "edit", message: `${getActorName()} atualizou o ativo ${item.name}.` });
                         queueRemoteStatePersist("inventory");
                         showToast("Ativo atualizado.");
@@ -4206,12 +4711,56 @@ ${getSessionActorMarkup("Usuário da sessão")}
                         const initQ = parseInt(document.getElementById("f-initial-qty")?.value || "0") || 0;
                         const newId = Date.now().toString();
                         const userLog = getActorName();
-                        state.inventory.push({ id: newId, quantity: initQ, status: "ok", manualPurchaseQty: 0, ...data });
-                        if (initQ > 0) state.movements.unshift({ id: Date.now().toString(), itemId: newId, type: "in", quantity: initQ, user: userLog, removedBy: "", actorName: userLog, sessionName: userLog, date: new Date().toISOString() });
+                        const assetUnits = readAssetIdentityRows(initQ);
+                        state.inventory.push({ id: newId, quantity: initQ, status: "ok", manualPurchaseQty: 0, metadata: { assetUnits }, ...data });
+                        if (initQ > 0) state.movements.unshift({ id: Date.now().toString(), itemId: newId, type: "in", quantity: initQ, user: userLog, removedBy: "", actorName: userLog, sessionName: userLog, assetUnits, date: new Date().toISOString() });
                         logActivity({ section: "inventory", action: "create", actorId: userLog, message: `${userLog} criou o ativo ${data.name}.` });
                         queueRemoteStatePersist("inventory", "movements");
                         showToast("Novo ativo criado!");
                     }
+                } else if (type === "add-maintenance") {
+                    const selectedItemId = String(document.getElementById("f-maint-item")?.value || "");
+                    const maintenanceItem = state.inventory.find((entry) => String(entry.id) === selectedItemId);
+                    if (!maintenanceItem) {
+                        showToast("Selecione um item do estoque.", "error");
+                        return;
+                    }
+                    const sentDate = String(document.getElementById("f-maint-sent")?.value || "");
+                    const returnDate = String(document.getElementById("f-maint-return")?.value || "");
+                    if (!sentDate || !returnDate) {
+                        showToast("Informe as datas de ida e volta.", "error");
+                        return;
+                    }
+                    if (parseDateOnly(returnDate) < parseDateOnly(sentDate)) {
+                        showToast("A data de volta nao pode ser anterior a ida.", "error");
+                        return;
+                    }
+                    const selectedUnitId = String(document.getElementById("f-maint-unit")?.value || "");
+                    const { unit, index } = resolveMaintenanceUnit(maintenanceItem, selectedUnitId);
+                    const actorName = getActorName();
+                    const record = {
+                        id: `maint-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                        itemId: maintenanceItem.id,
+                        itemName: maintenanceItem.name,
+                        category: maintenanceItem.category,
+                        assetUnitId: unit.id,
+                        assetIndex: index,
+                        patrimony: unit.patrimony || "",
+                        serialNumber: unit.serialNumber || "",
+                        noIdentifier: Boolean(unit.noIdentifier),
+                        sentDate,
+                        returnDate,
+                        notes: String(document.getElementById("f-maint-notes")?.value || "").trim(),
+                        delayEffect: String(document.getElementById("f-maint-delay")?.value || "").trim(),
+                        status: "active",
+                        createdAt: new Date().toISOString(),
+                        createdBy: actorName,
+                    };
+                    state.maintenanceRecords.unshift(record);
+                    syncMaintenanceSettings();
+                    logActivity({ section: "maintenance", action: "send", actorId: actorName, message: `${actorName} enviou ${maintenanceItem.name} para manutencao.` });
+                    queueRemoteStatePersist("settings", "activityLogs");
+                    showToast("Item enviado para manutencao.");
                 } else if (type === "user-add" || type === "user-edit") {
                     const user = getUserById(id);
                     const name = String(document.getElementById("f-user-name")?.value || "").trim();
@@ -4360,7 +4909,11 @@ ${getSessionActorMarkup("Usuário da sessão")}
                     res.innerHTML = "";
                     return;
                 }
-                const filtered = state.inventory.filter((i) => i.name.toLowerCase().includes(val.toLowerCase()) || i.category.toLowerCase().includes(val.toLowerCase()));
+                const query = val.toLowerCase();
+                const filtered = state.inventory.filter((i) => {
+                    const assetText = getAssetUnits(i).map((unit) => `${unit.patrimony} ${unit.serialNumber}`).join(" ").toLowerCase();
+                    return i.name.toLowerCase().includes(query) || i.category.toLowerCase().includes(query) || assetText.includes(query);
+                });
                 res.innerHTML = filtered
                     .map(
                         (i) => `
@@ -4492,6 +5045,7 @@ ${getSessionActorMarkup("Usuário da sessão")}
                         state.movements = structuredClone(DEFAULT_BOOTSTRAP.movements || []);
                         state.infraRooms = normalizeInfraRooms(structuredClone(DEFAULT_BOOTSTRAP.infraRooms || []));
                         state.settings = structuredClone(DEFAULT_BOOTSTRAP.settings || { threshold: 5, buyerEmail: "compras@suaempresa.com.br" });
+                        state.maintenanceRecords = normalizeMaintenanceRecords(state.settings.maintenanceRecords || []);
                         state.activityLogs = [];
                     } else {
                         clearLocalCache();
