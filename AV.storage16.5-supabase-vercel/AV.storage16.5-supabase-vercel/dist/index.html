@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>AV.Storage | Gestão de Ativos Enterprise</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -29,9 +30,54 @@
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #52525b; }
         .nav-btn-active { background-color: #fde047 !important; color: #000000 !important; box-shadow: 0 10px 15px -3px rgba(250, 204, 21, 0.22); }
+        .nav-btn { position: relative; isolation: isolate; transform: translateY(0); }
+        .nav-btn::after {
+            content: "";
+            position: absolute;
+            inset: 6px 10px auto 10px;
+            height: 1px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+            opacity: 0;
+            transform: translateX(-12px);
+            transition: opacity 220ms ease, transform 220ms ease;
+        }
+        .nav-btn:hover { transform: translateY(-1px); }
+        .nav-btn:hover::after,
+        .nav-btn-active::after { opacity: 1; transform: translateX(0); }
+        .interactive-surface {
+            transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+            will-change: transform;
+        }
+        .interactive-surface:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 36px -28px rgba(0, 0, 0, 0.55);
+        }
+        .room-card { animation: fadeIn 0.28s ease-out both; }
+        .infra-filter-count { transition: transform 180ms ease, background-color 180ms ease; }
+        .infra-filter-chip:hover .infra-filter-count { transform: scale(1.08); }
+        #main-content {
+            background-image:
+                linear-gradient(rgba(24, 24, 27, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(24, 24, 27, 0.035) 1px, transparent 1px);
+            background-size: 44px 44px;
+        }
+        .dark #main-content {
+            background-image:
+                linear-gradient(rgba(250, 250, 250, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(250, 250, 250, 0.035) 1px, transparent 1px);
+        }
         .drag-over { border: 2px dashed #fde047 !important; background-color: rgba(250, 204, 21, 0.08) !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
+        @media (prefers-reduced-motion: reduce) {
+            .animate-fade,
+            .room-card { animation: none !important; }
+            .nav-btn,
+            .interactive-surface { transition: none !important; }
+            .nav-btn:hover,
+            .interactive-surface:hover { transform: none !important; }
+        }
     </style>
     <script>window.__AV_BOOT_READY__ = false;</script>
 </head>
@@ -272,26 +318,26 @@
                 </button>
 
                 <!-- Navegação Horizontal -->
-                <nav class="hidden lg:flex flex-1 items-center space-x-1" id="main-nav">
-                    <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn nav-btn-active flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-semibold text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
+                <nav class="order-last flex w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-200/70 bg-zinc-100/80 p-1 shadow-inner dark:border-zinc-800 dark:bg-zinc-950/70 lg:order-none lg:mx-4 lg:grid lg:w-auto lg:flex-1 lg:max-w-5xl lg:grid-cols-6 lg:overflow-visible" id="main-nav">
+                    <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn nav-btn-active flex min-w-max items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-zinc-500 transition-all hover:bg-white/80 dark:hover:bg-zinc-800/80">
                         <i data-lucide="layout-grid" class="w-4 h-4"></i><span>Painel</span>
                     </button>
-                    <button onclick="switchView('inventory')" id="nav-inventory" class="nav-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-semibold text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
+                    <button onclick="switchView('inventory')" id="nav-inventory" class="nav-btn flex min-w-max items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-zinc-500 transition-all hover:bg-white/80 dark:hover:bg-zinc-800/80">
                         <i data-lucide="package" class="w-4 h-4"></i><span>Inventário</span>
                     </button>
-                    <button onclick="switchView('purchases')" id="nav-purchases" class="nav-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-semibold text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
+                    <button onclick="switchView('purchases')" id="nav-purchases" class="nav-btn flex min-w-max items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-zinc-500 transition-all hover:bg-white/80 dark:hover:bg-zinc-800/80">
                         <i data-lucide="shopping-bag" class="w-4 h-4"></i><span>Requisições</span>
                         <span id="badge-purchases" class="bg-yellow-400 text-[10px] text-black px-1.5 py-0.5 rounded-md font-black hidden">0</span>
                     </button>
-                    <button onclick="switchView('infra')" id="nav-infra" class="nav-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-semibold text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
+                    <button onclick="switchView('infra')" id="nav-infra" class="nav-btn flex min-w-max items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-zinc-500 transition-all hover:bg-white/80 dark:hover:bg-zinc-800/80">
                         <i data-lucide="map" class="w-4 h-4"></i><span>Infra</span>
                     </button>
-                    <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-800 mx-2"></div>
-                    <button onclick="switchView('insights')" id="nav-insights" class="nav-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-semibold text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
-                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i><span>Analíticos</span>
+                    <button onclick="switchView('maintenance')" id="nav-maintenance" class="nav-btn flex min-w-max items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-zinc-500 transition-all hover:bg-white/80 dark:hover:bg-zinc-800/80">
+                        <i data-lucide="wrench" class="w-4 h-4"></i><span>Manutencao</span>
+                        <span id="badge-maintenance" class="bg-red-500 text-[10px] text-white px-1.5 py-0.5 rounded-md font-black hidden">0</span>
                     </button>
-                    <button onclick="switchView('settings')" id="nav-settings" class="nav-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-semibold text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
-                        <i data-lucide="settings" class="w-4 h-4"></i><span>Ajustes</span>
+                    <button onclick="switchView('insights')" id="nav-insights" class="nav-btn flex min-w-max items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-zinc-500 transition-all hover:bg-white/80 dark:hover:bg-zinc-800/80">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i><span>Analíticos</span>
                     </button>
                 </nav>
 
@@ -445,6 +491,8 @@
                                 <thead>
                                     <tr class="bg-zinc-50 dark:bg-zinc-800/50 text-[10px] uppercase font-black text-zinc-400 tracking-widest border-b border-zinc-200 dark:border-zinc-800">
                                         <th class="px-6 py-5">Produto</th>
+                                        <th class="px-6 py-5">Categoria</th>
+                                        <th class="px-6 py-5">Patrimonio / Serie</th>
                                         <th class="px-6 py-5">Qtd</th>
                                         <th class="px-6 py-5">Status</th>
                                         <th class="px-6 py-5 text-right">Ações</th>
@@ -486,6 +534,21 @@
                         <div id="purchases-container" class="space-y-4"></div>
                     </div>
 
+                    <!-- MAINTENANCE -->
+                    <div id="view-maintenance" class="view-section hidden animate-fade space-y-6">
+                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            <div>
+                                <h2 class="text-2xl font-black tracking-tight">Manutencao</h2>
+                                <p class="text-zinc-500 mt-1 font-medium text-sm">Itens do estoque enviados para manutencao, com patrimonio, serie, datas, observacoes e efeito de atraso.</p>
+                            </div>
+                            <button onclick="openModal('add-maintenance')" id="maintenance-add-btn" class="h-12 bg-yellow-400 text-black px-6 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="wrench" class="w-4 h-4"></i>Adicionar item do estoque
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="maintenance-stats"></div>
+                        <div id="maintenance-container" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+                    </div>
+
                     <!-- INFRAESTRUTURA -->
                     <div id="view-infra" class="view-section hidden animate-fade flex-col h-full">
                         <div class="mb-6 flex flex-col xl:flex-row xl:justify-between xl:items-end gap-4 flex-shrink-0">
@@ -499,11 +562,15 @@
                                     <button onclick="switchInfraTab(2)" id="tab-unit-2" class="px-8 py-2.5 rounded-lg font-bold text-sm transition-all text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white whitespace-nowrap">Unidade 2</button>
                                     <button onclick="switchInfraTab(3)" id="tab-unit-3" class="px-8 py-2.5 rounded-lg font-bold text-sm transition-all text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white whitespace-nowrap">Setores</button>
                                 </div>
+                                <div class="relative w-full sm:w-[340px]">
+                                    <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"></i>
+                                    <input id="infra-search" type="text" placeholder="Buscar sala, andar ou equipamento" oninput="setInfraSearch(this.value)" class="w-full h-11 rounded-xl border border-zinc-200 bg-white pl-11 pr-4 text-sm font-bold outline-none transition-all focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/10 dark:border-zinc-800 dark:bg-zinc-900" />
+                                </div>
                                 <div class="flex flex-wrap gap-2" id="infra-filter-bar">
-                                    <button onclick="setInfraFilter('all')" id="infra-filter-all" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500">Todas</button>
-                                    <button onclick="setInfraFilter('attention')" id="infra-filter-attention" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500">Atenção</button>
-                                    <button onclick="setInfraFilter('keep')" id="infra-filter-keep" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500">Só manter</button>
-                                    <button onclick="setInfraFilter('replace')" id="infra-filter-replace" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500">Só trocar</button>
+                                    <button onclick="setInfraFilter('all')" id="infra-filter-all" class="infra-filter-chip px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500 inline-flex items-center gap-2"><span>Todas</span><span id="infra-filter-all-count" class="infra-filter-count min-w-[22px] rounded-full bg-zinc-100 px-1.5 py-0.5 text-center text-[10px] dark:bg-zinc-800">0</span></button>
+                                    <button onclick="setInfraFilter('attention')" id="infra-filter-attention" class="infra-filter-chip px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500 inline-flex items-center gap-2"><span>Atenção</span><span id="infra-filter-attention-count" class="infra-filter-count min-w-[22px] rounded-full bg-zinc-100 px-1.5 py-0.5 text-center text-[10px] dark:bg-zinc-800">0</span></button>
+                                    <button onclick="setInfraFilter('keep')" id="infra-filter-keep" class="infra-filter-chip px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500 inline-flex items-center gap-2"><span>Só manter</span><span id="infra-filter-keep-count" class="infra-filter-count min-w-[22px] rounded-full bg-zinc-100 px-1.5 py-0.5 text-center text-[10px] dark:bg-zinc-800">0</span></button>
+                                    <button onclick="setInfraFilter('replace')" id="infra-filter-replace" class="infra-filter-chip px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-black uppercase tracking-widest text-zinc-500 inline-flex items-center gap-2"><span>Só trocar</span><span id="infra-filter-replace-count" class="infra-filter-count min-w-[22px] rounded-full bg-zinc-100 px-1.5 py-0.5 text-center text-[10px] dark:bg-zinc-800">0</span></button>
                                 </div>
                             </div>
                         </div>
