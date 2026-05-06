@@ -208,7 +208,8 @@
         manualPurchaseQty: Number(row.manual_purchase_qty || 0),
         deadline: row.deadline || null,
         isCritical: !!row.is_critical,
-        version: Number(row.version || 1)
+        version: Number(row.version || 1),
+        metadata: row.metadata && typeof row.metadata === "object" ? row.metadata : {}
       })),
       movements: movements.map((row) => ({
         id: cleanString(row.id),
