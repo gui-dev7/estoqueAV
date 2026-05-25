@@ -36,6 +36,13 @@ assertIncludes(html, 'id="infra-content"', "infra content");
 assertIncludes(html, "brand-favicon", "header should use favicon as brand mark");
 assertIncludes(html, 'src="./favicon.svg"', "header should reuse browser favicon");
 assert.ok(!html.includes('data-lucide="layers"'), "header should not use the old layers icon as logo");
+assertIncludes(html, ">Estoque<", "brand name should be Estoque");
+assertIncludes(html, ">Audiovisual<", "brand subtitle should be Audiovisual");
+assert.ok(!html.includes(">AV.Storage<"), "visible brand name should not remain AV.Storage");
+assert.ok(!html.includes(">Enterprise<"), "visible brand subtitle should not remain Enterprise");
+assert.ok(!html.includes(".nav-btn::after"), "nav hover should not use the rejected white line pseudo-element");
+assert.ok(!html.includes("rgba(255, 255, 255, 0.7)"), "nav hover should not render the old white line");
+assertIncludes(html, ".nav-btn:hover::before", "nav hover should use the new soft glow effect");
 assertIncludes(html, "shell-header", "seamless shell header");
 assertIncludes(html, "shell-nav", "seamless nav");
 
