@@ -27,41 +27,41 @@
     <style>
         :root {
             --av-black: #050509;
-            --av-bg: #eef0f4;
-            --av-bg-soft: #f6f7fb;
+            --av-bg: #f3f4f7;
+            --av-bg-soft: #e9ebf0;
             --av-panel: #ffffff;
-            --av-panel-soft: #f3f4f6;
+            --av-panel-soft: #f8f9fb;
             --av-surface: #ffffff;
-            --av-surface-unified: #eef0f4;
-            --av-card: var(--av-bg);
-            --av-card-soft: var(--av-bg);
+            --av-surface-unified: #f3f4f7;
+            --av-card: #ffffff;
+            --av-card-soft: #f8f9fb;
             --av-amber: #f59e0b;
             --av-amber-strong: #d97706;
             --av-magenta: #d946ef;
             --av-magenta-soft: rgba(217, 70, 239, 0.14);
             --av-text: #18181b;
             --av-muted: #71717a;
-            --av-border: rgba(24, 24, 27, 0.1);
-            --av-shadow: rgba(24, 24, 27, 0.1);
-            --av-card-shadow: 0 18px 44px -34px rgba(24, 24, 27, 0.45), 0 1px 0 rgba(255, 255, 255, 0.88) inset;
-            --av-card-shadow-hover: 0 22px 54px -34px rgba(24, 24, 27, 0.52), 0 0 0 1px rgba(217, 70, 239, 0.14);
+            --av-border: rgba(24, 24, 27, 0.11);
+            --av-shadow: rgba(24, 24, 27, 0.12);
+            --av-card-shadow: 0 18px 42px -34px rgba(24, 24, 27, 0.42), 0 1px 0 rgba(255, 255, 255, 0.82) inset;
+            --av-card-shadow-hover: 0 24px 56px -34px rgba(24, 24, 27, 0.5), 0 0 0 1px rgba(217, 70, 239, 0.14);
             --av-glow: rgba(217, 70, 239, 0.18);
         }
         html.dark {
-            --av-bg: #050509;
-            --av-bg-soft: #050509;
-            --av-panel: #0b0b10;
-            --av-panel-soft: #0f0f16;
-            --av-surface: #050509;
-            --av-surface-unified: #050509;
-            --av-card: var(--av-bg);
-            --av-card-soft: var(--av-bg);
+            --av-bg: #07070a;
+            --av-bg-soft: #0b0b11;
+            --av-panel: #101016;
+            --av-panel-soft: #15151d;
+            --av-surface: #101016;
+            --av-surface-unified: #07070a;
+            --av-card: #101016;
+            --av-card-soft: #15151d;
             --av-text: #ffffff;
             --av-muted: #a1a1aa;
-            --av-border: rgba(255, 255, 255, 0.08);
+            --av-border: rgba(255, 255, 255, 0.09);
             --av-shadow: rgba(0, 0, 0, 0.34);
-            --av-card-shadow: 0 20px 48px -32px rgba(0, 0, 0, 0.88), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-            --av-card-shadow-hover: 0 24px 56px -30px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(217, 70, 239, 0.2);
+            --av-card-shadow: 0 22px 48px -34px rgba(0, 0, 0, 0.86), 0 1px 0 rgba(255, 255, 255, 0.045) inset;
+            --av-card-shadow-hover: 0 26px 58px -32px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(217, 70, 239, 0.2);
             --av-glow: rgba(217, 70, 239, 0.26);
         }
         body { font-family: "Plus Jakarta Sans", sans-serif; background: var(--av-bg); color: var(--av-text); }
@@ -76,9 +76,9 @@
             box-shadow: none !important;
         }
         .shell-nav {
-            background: color-mix(in srgb, var(--av-surface) 62%, transparent) !important;
+            background: color-mix(in srgb, var(--av-card) 76%, transparent) !important;
             border: 0 !important;
-            box-shadow: none !important;
+            box-shadow: 0 14px 36px -34px var(--av-shadow), inset 0 0 0 1px color-mix(in srgb, var(--av-border) 70%, transparent) !important;
         }
         .shell-user {
             border-left: 0 !important;
@@ -94,7 +94,7 @@
             border: 0 !important;
         }
         #main-content {
-            background: var(--av-bg) !important;
+            background: linear-gradient(180deg, var(--av-bg), var(--av-bg-soft)) !important;
         }
         .ambient-sheen {
             position: relative;
@@ -107,8 +107,8 @@
             inset: 0 0 auto 0;
             height: 96px;
             pointer-events: none;
-            background: linear-gradient(180deg, color-mix(in srgb, var(--av-amber) 8%, transparent), transparent);
-            opacity: 0.55;
+            background: linear-gradient(180deg, color-mix(in srgb, var(--av-amber) 6%, transparent), transparent);
+            opacity: 0.34;
             z-index: 0;
         }
         .ambient-sheen > * {
@@ -126,28 +126,19 @@
             box-shadow: var(--av-card-shadow) !important;
         }
         .surface-inset {
-            background: color-mix(in srgb, var(--av-bg) 88%, var(--av-card) 12%) !important;
+            background: color-mix(in srgb, var(--av-bg) 72%, var(--av-card) 28%) !important;
             border-color: var(--av-border) !important;
         }
         .surface-panel {
             background: var(--av-panel) !important;
             border-color: var(--av-border) !important;
         }
-        html.dark #main-content [class*="dark:bg-zinc-900"],
-        html.dark #main-content [class*="dark:bg-black/"],
-        html.dark #main-content [class*="bg-white/"] {
-            background-color: var(--av-bg) !important;
-        }
-        #main-content div[class*="bg-white"]:not([class*="rounded-full"]),
-        #main-content div[class*="bg-zinc-50"]:not([class*="rounded-full"]),
-        #main-content div[class*="bg-zinc-100"]:not([class*="rounded-full"]),
-        #main-content div[class*="bg-zinc-800"]:not([class*="rounded-full"]),
-        #main-content div[class*="bg-zinc-900"]:not([class*="rounded-full"]),
-        #main-content div[class*="bg-black"]:not([class*="rounded-full"]),
-        #main-content div[class*="dark:bg-zinc-900"]:not([class*="rounded-full"]),
-        #main-content div[class*="dark:bg-zinc-950"]:not([class*="rounded-full"]),
-        #main-content div[class*="dark:bg-black"]:not([class*="rounded-full"]) {
-            background-color: var(--av-bg) !important;
+        #main-content .view-section > div[class*="bg-white"],
+        #main-content .view-section > div[class*="dark:bg-zinc-900"],
+        #main-content .view-section > div[class*="dark:bg-zinc-950"] {
+            background-color: var(--av-card) !important;
+            border-color: var(--av-border) !important;
+            box-shadow: var(--av-card-shadow) !important;
         }
         html:not(.dark) .shell-header,
         html:not(.dark) .context-header {
