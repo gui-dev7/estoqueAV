@@ -143,11 +143,11 @@
         .neutral-bg-sync .surface-card,
         .neutral-bg-sync .surface-panel,
         .neutral-bg-sync .surface-inset,
-        .solid-neutral-system :is([class*="bg-white"],
-        [class*="bg-zinc"],
-        [class*="bg-black"],
-        [class*="dark:bg-zinc"],
-        [class*="dark:bg-black"]):not([class*="bg-amber"]):not([class*="bg-fuchsia"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-blue"]):not([class*="rounded-full"]),
+        .solid-neutral-system :is(div, section, article, main, header, footer, nav, aside, table, thead, tbody, tr)[class*="bg-white"],
+        .solid-neutral-system :is(div, section, article, main, header, footer, nav, aside, table, thead, tbody, tr)[class*="bg-zinc"],
+        .solid-neutral-system :is(div, section, article, main, header, footer, nav, aside, table, thead, tbody, tr)[class*="bg-black"],
+        .solid-neutral-system :is(div, section, article, main, header, footer, nav, aside, table, thead, tbody, tr)[class*="dark:bg-zinc"],
+        .solid-neutral-system :is(div, section, article, main, header, footer, nav, aside, table, thead, tbody, tr)[class*="dark:bg-black"],
         .neutral-bg-sync div[class*="bg-white"]:not([class*="rounded-full"]),
         .neutral-bg-sync div[class*="bg-zinc-50"]:not([class*="rounded-full"]),
         .neutral-bg-sync div[class*="bg-zinc-100"]:not([class*="rounded-full"]),
@@ -173,6 +173,15 @@
             color: var(--av-text) !important;
         }
         .nav-btn-active { background-color: var(--av-amber) !important; color: #000000 !important; box-shadow: 0 10px 22px -10px rgba(245, 158, 11, 0.48); }
+        html.dark .nav-btn-active {
+            background-color: color-mix(in srgb, var(--av-amber) 24%, var(--av-bg)) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.42), 0 18px 36px -28px rgba(245, 158, 11, 0.5);
+        }
+        html.dark .nav-btn-active i,
+        html.dark .nav-btn-active span {
+            color: #ffffff !important;
+        }
         .nav-btn { position: relative; isolation: isolate; transform: translateY(0); transition: transform 180ms ease, color 180ms ease, background-color 180ms ease, box-shadow 180ms ease; }
         .nav-btn::before {
             content: "";

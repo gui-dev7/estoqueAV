@@ -37,7 +37,10 @@ assert.ok(/\.surface-card\s*\{[^}]*background:\s*var\(--av-card\)/s.test(html), 
 assertIncludes(html, ".neutral-bg-sync", "main content neutral divs should be synchronized");
 assertIncludes(html, "solid-neutral-system", "whole app should synchronize neutral backgrounds");
 assertIncludes(html, 'id="app-view" class="solid-neutral-system', "app shell should use the neutral color system");
-assertIncludes(html, '.solid-neutral-system :is([class*="bg-white"]', "neutral Tailwind bg classes should be normalized");
+assertIncludes(html, '.solid-neutral-system :is(div, section', "neutral Tailwind bg sync should be limited to containers");
+assert.ok(!html.includes('.solid-neutral-system :is([class*="bg-white"]'), "neutral sync must not target every element type");
+assertIncludes(html, "html.dark .nav-btn-active", "dark active nav should have explicit readable contrast");
+assert.ok(/html\.dark\s+\.nav-btn-active\s*\{[^}]*color:\s*#ffffff\s*!important/s.test(html), "dark active nav text should stay light");
 assert.ok(/#main-content\s*\{[^}]*background:\s*var\(--av-bg\)/s.test(html), "main content should use a single flat background");
 assert.ok(!html.includes("background: linear-gradient(180deg, var(--av-bg)"), "main content should not use a banding gradient");
 assert.ok(!/#main-content\s*\{[^}]*background-image/s.test(html), "main content must not use a grid background");
