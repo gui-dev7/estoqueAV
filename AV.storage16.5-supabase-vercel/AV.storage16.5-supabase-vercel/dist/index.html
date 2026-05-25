@@ -22,6 +22,7 @@
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -205,6 +206,85 @@
             color: #000000 !important;
             border-color: transparent !important;
         }
+        .av-loader-stage {
+            perspective: 920px;
+        }
+        .loader-coin {
+            transform-style: preserve-3d;
+            background: radial-gradient(circle at 32% 24%, #fff7c2 0, #facc15 30%, #f59e0b 64%, #b45309 100%);
+            box-shadow: 0 0 72px rgba(245, 158, 11, 0.5), 0 28px 70px rgba(0, 0, 0, 0.48);
+        }
+        .loader-coin::before,
+        .loader-coin::after {
+            content: "";
+            position: absolute;
+            border-radius: 999px;
+            pointer-events: none;
+        }
+        .loader-coin::before {
+            inset: -10px;
+            border: 1px solid rgba(250, 204, 21, 0.3);
+            box-shadow: 0 0 34px rgba(245, 158, 11, 0.22);
+        }
+        .loader-coin::after {
+            inset: 10px;
+            border: 1px solid rgba(0, 0, 0, 0.18);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 48%, rgba(0, 0, 0, 0.12));
+        }
+        .loader-av {
+            font-family: "Plus Jakarta Sans", sans-serif;
+            letter-spacing: 0;
+            text-shadow: 0 2px 0 rgba(255, 255, 255, 0.2), 0 14px 26px rgba(0, 0, 0, 0.28);
+        }
+        #initial-loader p {
+            letter-spacing: 0 !important;
+        }
+        .loader-coin.is-css-fallback {
+            animation: avCoinSpin 1.25s linear infinite;
+        }
+        .quality-state-idle {
+            background: color-mix(in srgb, var(--av-bg) 90%, var(--av-card) 10%) !important;
+            border-color: var(--av-border) !important;
+            color: var(--av-muted) !important;
+        }
+        .quality-state-idle:hover {
+            border-color: color-mix(in srgb, var(--av-amber) 42%, var(--av-border)) !important;
+        }
+        .quality-state-good {
+            background: rgba(34, 197, 94, 0.14) !important;
+            border-color: rgba(34, 197, 94, 0.72) !important;
+            color: #15803d !important;
+            box-shadow: 0 14px 30px -24px rgba(34, 197, 94, 0.8);
+        }
+        html.dark .quality-state-good {
+            color: #86efac !important;
+        }
+        .quality-state-keep {
+            background: rgba(245, 158, 11, 0.14) !important;
+            border-color: rgba(245, 158, 11, 0.76) !important;
+            color: #b45309 !important;
+            box-shadow: 0 14px 30px -24px rgba(245, 158, 11, 0.82);
+        }
+        html.dark .quality-state-keep {
+            color: #fcd34d !important;
+        }
+        .quality-state-replace {
+            background: rgba(239, 68, 68, 0.14) !important;
+            border-color: rgba(239, 68, 68, 0.76) !important;
+            color: #dc2626 !important;
+            box-shadow: 0 14px 30px -24px rgba(239, 68, 68, 0.82);
+        }
+        html.dark .quality-state-replace {
+            color: #fca5a5 !important;
+        }
+        .quality-state-absent {
+            background: rgba(113, 113, 122, 0.16) !important;
+            border-color: rgba(113, 113, 122, 0.72) !important;
+            color: #52525b !important;
+        }
+        html.dark .quality-state-absent {
+            color: #d4d4d8 !important;
+        }
         .infra-toolbar {
             max-height: 220px;
             opacity: 1;
@@ -228,11 +308,13 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes roomIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes activePulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+        @keyframes avCoinSpin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
         .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
         @media (prefers-reduced-motion: reduce) {
             .animate-fade,
             .room-card,
-            .nav-btn-active::before { animation: none !important; }
+            .nav-btn-active::before,
+            .loader-coin.is-css-fallback { animation: none !important; }
             .nav-btn,
             .interactive-surface { transition: none !important; }
             .nav-btn:hover,
@@ -243,30 +325,56 @@
 </head>
 <body class="bg-black text-zinc-100 overflow-hidden transition-colors duration-500">
         <!-- LOADER INICIAL -->
-        <div id="initial-loader" class="fixed inset-0 z-[200] bg-[#09090b] flex flex-col items-center justify-center transition-opacity duration-1000">
-            <div class="relative w-24 h-24 flex items-center justify-center mb-8">
-                <div class="absolute inset-0 rounded-3xl border border-amber-400/20 animate-ping"></div>
-                <div class="absolute inset-2 rounded-2xl border border-amber-400/50 animate-pulse"></div>
-                <div class="w-16 h-16 bg-amber-400 text-black font-black text-3xl flex items-center justify-center rounded-xl shadow-[0_0_40px_rgba(245,158,11,0.28)]">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+        <div id="initial-loader" class="fixed inset-0 z-[200] bg-[#050509] flex flex-col items-center justify-center transition-opacity duration-700">
+            <div class="av-loader-stage relative mb-8 flex h-40 w-40 items-center justify-center">
+                <div class="loader-orbit absolute inset-0 rounded-full border border-amber-400/20"></div>
+                <div class="loader-orbit absolute inset-5 rounded-full border border-fuchsia-400/10"></div>
+                <div class="loader-coin relative flex h-28 w-28 items-center justify-center rounded-full text-black">
+                    <span class="loader-av relative z-10 text-5xl font-black leading-none">AV</span>
                 </div>
             </div>
-            <h1 class="font-black text-2xl tracking-tighter text-white mb-2">Construindo Ambiente Remoto</h1>
-            <p class="text-zinc-500 text-sm font-bold uppercase tracking-widest text-center max-w-[250px] animate-pulse">Sincronizando Módulos Seguros</p>
-            <div class="mt-8 w-48 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                <div class="h-full bg-amber-400 rounded-full" style="width: 0%; transition: width 1s ease-in-out" id="loader-progress"></div>
+            <h1 class="font-black text-2xl text-white mb-2">AV.Storage</h1>
+            <p class="text-zinc-500 text-sm font-bold uppercase text-center max-w-[250px] animate-pulse">Preparando interface</p>
+            <div class="mt-8 h-1 w-56 overflow-hidden rounded-full bg-zinc-800">
+                <div class="h-full rounded-full bg-amber-400" style="width: 0%" id="loader-progress"></div>
             </div>
         </div>
 
         <script>
-            window.addEventListener('DOMContentLoaded', () => {
+            const initAvCoinLoader = () => {
                 const loader = document.getElementById('initial-loader');
+                const coin = loader?.querySelector('.loader-coin');
+                const orbit = loader?.querySelectorAll('.loader-orbit');
+                const label = loader?.querySelector('.loader-av');
                 const progress = document.getElementById('loader-progress');
-                setTimeout(() => { if (progress) progress.style.width = '30%'; }, 100);
-                setTimeout(() => { if (progress) progress.style.width = '70%'; }, 500);
-                setTimeout(() => { if (progress) progress.style.width = '100%'; }, 1000);
-                setTimeout(() => { if (loader) { loader.style.opacity = '0'; loader.style.pointerEvents = 'none'; setTimeout(() => loader.remove(), 1000); } }, 1400);
-            });
+                const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+                const hasGsap = Boolean(window.gsap && loader && coin && !reduceMotion);
+
+                if (hasGsap) {
+                    gsap.set(coin, { transformStyle: 'preserve-3d', transformPerspective: 920 });
+                    gsap.to(coin, { rotationY: 360, duration: 1.15, repeat: -1, ease: 'none' });
+                    gsap.to(orbit, { rotation: 360, duration: 3.6, repeat: -1, ease: 'none', stagger: 0.18 });
+                    gsap.to(label, { scale: 1.06, duration: 0.7, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+                    if (progress) gsap.to(progress, { width: '100%', duration: 1.18, ease: 'power2.out' });
+                } else {
+                    coin?.classList.add('is-css-fallback');
+                    setTimeout(() => { if (progress) progress.style.width = '35%'; }, 120);
+                    setTimeout(() => { if (progress) progress.style.width = '78%'; }, 520);
+                    setTimeout(() => { if (progress) progress.style.width = '100%'; }, 980);
+                }
+
+                setTimeout(() => {
+                    if (!loader) return;
+                    loader.style.pointerEvents = 'none';
+                    if (window.gsap) {
+                        gsap.to(loader, { opacity: 0, duration: 0.55, ease: 'power2.out', onComplete: () => loader.remove() });
+                    } else {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.remove(), 700);
+                    }
+                }, 1450);
+            };
+            window.addEventListener('DOMContentLoaded', initAvCoinLoader);
         </script>
 
         <!-- LOGIN VIEW -->

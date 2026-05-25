@@ -2245,9 +2245,9 @@
             const QUALITY_META = {
                 good: {
                     label: "Bom",
-                    dot: "bg-amber-300",
-                    badge: "bg-amber-400/10 text-amber-200 border-amber-400/20",
-                    card: "border-amber-400/20 bg-amber-400/[0.045]",
+                    dot: "bg-green-500",
+                    badge: "bg-green-500/15 text-green-700 dark:text-green-300 border-green-400/30",
+                    card: "border-green-500/35 bg-green-500/[0.08]",
                 },
                 keep: {
                     label: "Dá pra manter",
@@ -2257,9 +2257,9 @@
                 },
                 replace: {
                     label: "Trocar",
-                    dot: "bg-fuchsia-500",
-                    badge: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-400/30",
-                    card: "border-fuchsia-500/40 bg-fuchsia-500/[0.075]",
+                    dot: "bg-red-500",
+                    badge: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-400/30",
+                    card: "border-red-500/40 bg-red-500/[0.08]",
                 },
                 absent: {
                     label: "Ausente",
@@ -2268,6 +2268,14 @@
                     card: "border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/30",
                 },
             };
+
+            const QUALITY_BUTTON_ACTIVE_CLASSES = {
+                good: "quality-state-good",
+                keep: "quality-state-keep",
+                replace: "quality-state-replace",
+                absent: "quality-state-absent",
+            };
+            const QUALITY_BUTTON_IDLE_CLASS = "quality-state-idle";
 
             const getEquipmentQualityKey = (key) => `${key}Quality`;
             const normalizeEquipmentQuality = (value, fallback = "absent") => {
@@ -2311,15 +2319,15 @@
             };
             const getRoomBorderColor = (room) => {
                 const level = computeRoomObsLevel(room);
-                if (level === "danger") return "border-fuchsia-500/70";
+                if (level === "danger") return "border-red-500/70";
                 if (level === "warning") return "border-amber-400/70";
-                return "border-white/10";
+                return "border-green-500/45";
             };
             const getRoomStatusIndicator = (room) => {
                 const entries = getRoomEquipmentEntries(room);
-                if (entries.some((entry) => entry.quality === "replace")) return '<span class="w-3 h-3 rounded-full bg-fuchsia-500 animate-pulse"></span>';
+                if (entries.some((entry) => entry.quality === "replace")) return '<span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>';
                 if (entries.some((entry) => entry.quality === "keep")) return '<span class="w-3 h-3 rounded-full bg-amber-400"></span>';
-                if (entries.some((entry) => entry.quality === "good")) return '<span class="w-2 h-2 rounded-full bg-amber-300"></span>';
+                if (entries.some((entry) => entry.quality === "good")) return '<span class="w-2 h-2 rounded-full bg-green-500"></span>';
                 return '<span class="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>';
             };
             const saveInfraRooms = () => { queueRemoteStatePersist("infraRooms"); };
@@ -3247,6 +3255,17 @@
             };
 
             // --- DASHBOARD ---
+            const getDashboardHealthColors = (percent) => {
+                const healthyGreen = percent >= 80 ? "#22c55e" : "#16a34a";
+                return ["#ef4444", "#f59e0b", healthyGreen];
+            };
+
+            const getDashboardHealthTextClass = (percent) => {
+                if (percent >= 80) return "text-green-500 dark:text-green-300";
+                if (percent >= 50) return "text-amber-400";
+                return "text-red-500 dark:text-red-300";
+            };
+
             const renderDashboard = () => {
                 const totalVal = state.inventory.reduce((a, b) => a + b.quantity * b.price, 0);
                 const lowStock = state.inventory.filter((i) => i.status === "low").length;
@@ -3296,6 +3315,9 @@
 
                 const percent = state.inventory.length === 0 ? 0 : Math.round((okStock / state.inventory.length) * 100);
                 setTextIfPresent("dash-health-percent", `${percent}%`, { warn: true });
+                const healthPercent = document.getElementById("dash-health-percent");
+                if (healthPercent) healthPercent.className = `text-3xl font-black leading-none ${getDashboardHealthTextClass(percent)}`;
+                const healthColors = getDashboardHealthColors(percent);
 
                 if (window.Chart) {
                     Chart.defaults.color = document.documentElement.classList.contains("dark") ? "#a1a1aa" : "#52525b";
@@ -3313,7 +3335,7 @@
                             datasets: [
                                 {
                                     data: [zeroStock, lowStock, okStock],
-                                    backgroundColor: ["#d946ef", "#f59e0b", document.documentElement.classList.contains("dark") ? "#27272a" : "#e4e4e7"],
+                                    backgroundColor: healthColors,
                                     borderWidth: 0,
                                     hoverOffset: 4,
                                 },
@@ -4323,29 +4345,22 @@
                 warn.className = inactiveClass;
                 dang.className = inactiveClass;
 
-                if (level === "ok") ok.className = `${baseClass} border-amber-500 bg-amber-500/20 text-amber-500 scale-110`;
+                if (level === "ok") ok.className = `${baseClass} border-green-500 bg-green-500/20 text-green-500 scale-110`;
                 if (level === "warning") warn.className = `${baseClass} border-amber-400 bg-amber-400/20 text-amber-400 scale-110`;
-                if (level === "danger") dang.className = `${baseClass} border-fuchsia-500 bg-fuchsia-500/20 text-fuchsia-500 scale-110`;
+                if (level === "danger") dang.className = `${baseClass} border-red-500 bg-red-500/20 text-red-500 scale-110`;
             };
 
             window.setEquipmentQuality = (equipmentKey, value) => {
                 const hidden = document.getElementById(`f-room-${equipmentKey}-quality`);
                 if (hidden) hidden.value = value;
 
-                const buttonConfigs = {
-                    good: "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                    keep: "border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-300",
-                    replace: "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-500",
-                    absent: "border-zinc-400 bg-zinc-200/70 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300",
-                };
-
                 ["good", "keep", "replace", "absent"].forEach((quality) => {
                     const btn = document.getElementById(`btn-quality-${equipmentKey}-${quality}`);
                     if (!btn) return;
                     btn.className = `quality-btn quality-btn-${equipmentKey} flex-1 rounded-xl border px-2.5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
                         quality === value
-                            ? `${buttonConfigs[quality]} scale-[1.02] shadow-sm`
-                            : "border-zinc-200 dark:border-zinc-800 text-zinc-500 bg-zinc-50 dark:bg-black hover:border-zinc-300 dark:hover:border-zinc-700"
+                            ? `${QUALITY_BUTTON_ACTIVE_CLASSES[quality]} scale-[1.02] shadow-sm`
+                            : QUALITY_BUTTON_IDLE_CLASS
                     }`;
                 });
             };
@@ -4592,11 +4607,11 @@ ${getSessionActorMarkup("Usuário da sessão")}
                     title = "Configurar Sala";
                     ensureRoomEquipmentState(room);
 
-                    const renderQualityButton = (equipmentKey, targetValue, label, colorClass) => {
+                    const renderQualityButton = (equipmentKey, targetValue, label) => {
                         const currentValue = room.equip[getEquipmentQualityKey(equipmentKey)] || (room.equip[equipmentKey] ? "good" : "absent");
                         const isActive = currentValue === targetValue;
                         return `
-                            <button type="button" onclick="setEquipmentQuality('${equipmentKey}', '${targetValue}')" id="btn-quality-${equipmentKey}-${targetValue}" class="quality-btn quality-btn-${equipmentKey} flex-1 rounded-xl border px-2.5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${isActive ? colorClass + " scale-[1.02] shadow-sm" : "border-zinc-200 dark:border-zinc-800 text-zinc-500 bg-zinc-50 dark:bg-black hover:border-zinc-300 dark:hover:border-zinc-700"}">${label}</button>
+                            <button type="button" onclick="setEquipmentQuality('${equipmentKey}', '${targetValue}')" id="btn-quality-${equipmentKey}-${targetValue}" class="quality-btn quality-btn-${equipmentKey} flex-1 rounded-xl border px-2.5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${isActive ? QUALITY_BUTTON_ACTIVE_CLASSES[targetValue] + " scale-[1.02] shadow-sm" : QUALITY_BUTTON_IDLE_CLASS}">${label}</button>
                         `;
                     };
 
@@ -4616,13 +4631,13 @@ ${getSessionActorMarkup("Usuário da sessão")}
                                         </div>
                                         <input id="f-room-${config.key}" value="${room.equip[config.key] || ""}" class="w-full bg-white dark:bg-black p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold text-sm" placeholder="Nome / modelo do ${config.label.toLowerCase()}..." />
                                         <div class="grid grid-cols-4 gap-2 mt-3">
-                                            ${renderQualityButton(config.key, "good", "Verde", "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400")}
-                                            ${renderQualityButton(config.key, "keep", "Amarelo claro", "border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-300")}
-                                            ${renderQualityButton(config.key, "replace", "Vermelho", "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-500")}
-                                            ${renderQualityButton(config.key, "absent", "Cinza", "border-zinc-400 bg-zinc-200/70 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300")}
+                                            ${renderQualityButton(config.key, "good", "Verde")}
+                                            ${renderQualityButton(config.key, "keep", "Amarelo")}
+                                            ${renderQualityButton(config.key, "replace", "Vermelho")}
+                                            ${renderQualityButton(config.key, "absent", "Cinza")}
                                         </div>
                                         <input type="hidden" id="f-room-${config.key}-quality" value="${qualityValue}" />
-                                        <div class="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Verde: bom · Amarelo claro: dá pra manter · Vermelho: trocar · Cinza: ausente</div>
+                                        <div class="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Verde: bom · Amarelo: dá pra manter · Vermelho: trocar · Cinza: ausente</div>
                                     </div>
                                 `;
                             }).join("")}

@@ -13,6 +13,13 @@ assertIncludes(html, "--av-magenta", "theme tokens");
 assertIncludes(html, "--av-bg", "theme tokens");
 assertIncludes(html, "--av-surface", "theme tokens");
 assertIncludes(html, "--av-card", "theme tokens");
+assertIncludes(html, "gsap.min.js", "GSAP loader dependency");
+assertIncludes(html, "loader-coin", "AV coin loader markup");
+assertIncludes(html, "loader-av", "AV coin loader type");
+assertIncludes(html, "initAvCoinLoader", "AV coin loader initializer");
+assertIncludes(html, "gsap.to", "GSAP coin animation");
+assertIncludes(html, "quality-state-good", "green quality status styles");
+assertIncludes(html, "quality-state-replace", "red quality status styles");
 assertIncludes(html, "html.dark", "dark theme tokens");
 assertIncludes(html, "background: var(--av-bg)", "continuous page/grid base");
 assertIncludes(html, "ambient-sheen", "premium ambient effect");
@@ -43,7 +50,13 @@ assert.ok(Number(pollMatch[1]) >= 3000, "remote poll interval should be at least
 const qualityMetaMatch = script.match(/const QUALITY_META = \{[\s\S]*?\n            \};/);
 assert.ok(qualityMetaMatch, "quality metadata block must exist");
 const qualityMeta = qualityMetaMatch[0];
-assert.ok(qualityMeta.includes("fuchsia"), "quality metadata should use magenta/fuchsia accents");
-assert.ok(!/green-|red-/.test(qualityMeta), "quality metadata should avoid green/red in room status colors");
+assert.ok(qualityMeta.includes("green-"), "quality metadata should keep green status colors");
+assert.ok(qualityMeta.includes("red-"), "quality metadata should keep red status colors");
+
+assertIncludes(script, "QUALITY_BUTTON_ACTIVE_CLASSES", "quality buttons should use centralized active status colors");
+assertIncludes(script, "quality-state-good", "good quality button should be green");
+assertIncludes(script, "quality-state-replace", "replace quality button should be red");
+assertIncludes(script, "getDashboardHealthColors", "dashboard health colors should be explicit");
+assertIncludes(script, "#22c55e", "healthy dashboard chart should render green");
 
 console.log("UI/performance checks passed.");
