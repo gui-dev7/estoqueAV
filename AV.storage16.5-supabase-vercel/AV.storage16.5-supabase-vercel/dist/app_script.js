@@ -4007,7 +4007,7 @@
                 if (!container) return;
                 if (!floors.length) {
                     container.innerHTML = `
-                        <div class="interactive-surface rounded-3xl bg-white/[0.04] p-10 text-center shadow-sm">
+                        <div class="interactive-surface surface-unified soft-glow rounded-3xl p-10 text-center shadow-sm">
                             <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300">
                                 <i data-lucide="search-x" class="h-5 w-5"></i>
                             </div>
@@ -4036,10 +4036,10 @@
                                         const statusIndicator = getRoomStatusIndicator(room);
 
                                         return `
-                                    <div id="room-${room.id}" class="interactive-surface room-card bg-white/[0.045] border ${borderColor} p-5 rounded-2xl hover:border-fuchsia-400/70 transition-all duration-200 group relative shadow-sm">
+                                    <div id="room-${room.id}" class="interactive-surface surface-unified soft-glow room-card border ${borderColor} p-5 rounded-2xl transition-all duration-200 group relative shadow-sm">
                                         <div class="flex justify-between items-start gap-3 mb-4">
                                             <div>
-                                                <h4 class="font-bold text-sm text-white group-hover:text-amber-300 transition-colors">${room.name}</h4>
+                                                <h4 class="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-amber-300 transition-colors">${room.name}</h4>
                                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-1">${activeCount} item${activeCount === 1 ? "" : "s"} mapeado${activeCount === 1 ? "" : "s"}</p>
                                             </div>
                                             ${statusIndicator}
@@ -4048,7 +4048,7 @@
                                             ${equipmentEntries
                                                 .map(
                                                     (entry) => `
-                                                <div class="rounded-2xl border ${entry.meta.card} px-3 py-3 min-h-[92px] flex flex-col justify-between">
+                                                <div class="surface-unified rounded-2xl border ${entry.meta.card} px-3 py-3 min-h-[92px] flex flex-col justify-between">
                                                     <div class="flex items-center justify-between gap-2">
                                                         <span class="text-[10px] font-black uppercase tracking-widest text-zinc-500">${entry.label}</span>
                                                         <i data-lucide="${entry.icon}" class="w-3.5 h-3.5 text-zinc-400"></i>
@@ -4067,14 +4067,14 @@
                                         </div>
                                         ${
                                             room.equip.obs
-                                                ? `<div class="mt-4 rounded-2xl bg-black/30 px-3 py-2">
+                                                ? `<div class="surface-unified mt-4 rounded-2xl px-3 py-2">
                                                     <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Observações</p>
                                                     <p class="text-xs font-bold text-zinc-600 dark:text-zinc-300 break-words">${room.equip.obs}</p>
                                                 </div>`
                                                 : ""
                                         }
                                         <div class="mt-4 flex items-center justify-between gap-3">
-                                            <button onclick="event.stopPropagation(); openRoomHistory('${room.id}')" class="flex-1 px-3 py-2 rounded-xl bg-white/[0.04] text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2">
+                                            <button onclick="event.stopPropagation(); openRoomHistory('${room.id}')" class="surface-unified soft-glow flex-1 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2">
                                                 <i data-lucide="history" class="w-4 h-4"></i>
                                                 Histórico
                                             </button>

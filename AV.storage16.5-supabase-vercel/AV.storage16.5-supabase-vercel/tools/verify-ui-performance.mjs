@@ -10,6 +10,13 @@ const assertIncludes = (source, expected, label) => {
 
 assertIncludes(html, "--av-amber", "theme tokens");
 assertIncludes(html, "--av-magenta", "theme tokens");
+assertIncludes(html, "--av-bg", "theme tokens");
+assertIncludes(html, "--av-surface", "theme tokens");
+assertIncludes(html, "html.dark", "dark theme tokens");
+assertIncludes(html, "background: var(--av-surface-unified)", "grid/card color alignment");
+assertIncludes(html, "ambient-sheen", "premium ambient effect");
+assertIncludes(html, "soft-glow", "premium glow effect");
+assertIncludes(html, "surface-unified", "unified grid surfaces");
 assert.ok(!/#main-content\s*\{[^}]*background-image/s.test(html), "main content must not use a grid background");
 assertIncludes(html, 'id="infra-toolbar"', "infra toolbar");
 assertIncludes(html, 'id="infra-content"', "infra content");
@@ -19,6 +26,8 @@ assertIncludes(html, "shell-nav", "seamless nav");
 assertIncludes(script, "initInfraAutoToolbar", "infra scroll auto hide");
 assertIncludes(script, "setInfraToolbarCollapsed", "infra scroll auto hide");
 assertIncludes(script, "scheduleInfraRender", "infra render debounce");
+assertIncludes(script, "surface-unified", "infra cards should use unified surfaces");
+assertIncludes(script, "soft-glow", "infra cards should use soft glow");
 assert.ok(!/new\s+MutationObserver/.test(script), "icon refresh must not observe the whole document");
 assert.ok(!/setTimeout\(\(\)\s*=>\s*\{\s*try\s*\{\s*lucide\.createIcons/s.test(script), "icon refresh must not double-run with delayed createIcons");
 
