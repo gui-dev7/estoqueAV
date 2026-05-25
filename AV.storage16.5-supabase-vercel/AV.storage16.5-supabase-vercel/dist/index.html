@@ -33,8 +33,8 @@
             --av-panel-soft: #f3f4f6;
             --av-surface: #ffffff;
             --av-surface-unified: #eef0f4;
-            --av-card: #ffffff;
-            --av-card-soft: #f7f7fa;
+            --av-card: var(--av-bg);
+            --av-card-soft: var(--av-bg);
             --av-amber: #f59e0b;
             --av-amber-strong: #d97706;
             --av-magenta: #d946ef;
@@ -54,8 +54,8 @@
             --av-panel-soft: #0f0f16;
             --av-surface: #050509;
             --av-surface-unified: #050509;
-            --av-card: #0b0b10;
-            --av-card-soft: #111118;
+            --av-card: var(--av-bg);
+            --av-card-soft: var(--av-bg);
             --av-text: #ffffff;
             --av-muted: #a1a1aa;
             --av-border: rgba(255, 255, 255, 0.08);
@@ -83,6 +83,11 @@
         .shell-user {
             border-left: 0 !important;
             padding-left: 0 !important;
+        }
+        .brand-favicon {
+            display: block;
+            border-radius: 1rem;
+            box-shadow: 0 14px 30px -18px rgba(245, 158, 11, 0.72);
         }
         .context-header {
             background: var(--av-bg);
@@ -131,6 +136,17 @@
         html.dark #main-content [class*="dark:bg-zinc-900"],
         html.dark #main-content [class*="dark:bg-black/"],
         html.dark #main-content [class*="bg-white/"] {
+            background-color: var(--av-bg) !important;
+        }
+        #main-content div[class*="bg-white"]:not([class*="rounded-full"]),
+        #main-content div[class*="bg-zinc-50"]:not([class*="rounded-full"]),
+        #main-content div[class*="bg-zinc-100"]:not([class*="rounded-full"]),
+        #main-content div[class*="bg-zinc-800"]:not([class*="rounded-full"]),
+        #main-content div[class*="bg-zinc-900"]:not([class*="rounded-full"]),
+        #main-content div[class*="bg-black"]:not([class*="rounded-full"]),
+        #main-content div[class*="dark:bg-zinc-900"]:not([class*="rounded-full"]),
+        #main-content div[class*="dark:bg-zinc-950"]:not([class*="rounded-full"]),
+        #main-content div[class*="dark:bg-black"]:not([class*="rounded-full"]) {
             background-color: var(--av-bg) !important;
         }
         html:not(.dark) .shell-header,
@@ -576,9 +592,7 @@
                 
                 <!-- Logo -->
                 <button onclick="switchView('dashboard')" class="flex items-center space-x-3 text-left hover:opacity-80 transition-opacity focus:outline-none mr-4">
-                    <div class="w-8 h-8 sm:w-10 sm:h-10 bg-amber-400 text-black font-black text-xl flex items-center justify-center rounded-xl shadow-lg">
-                        <i data-lucide="layers" class="w-5 h-5 sm:w-6 sm:h-6"></i>
-                    </div>
+                    <img src="./favicon.svg" alt="AV.Storage" class="brand-favicon h-8 w-8 sm:h-10 sm:w-10" />
                     <div class="hidden xl:block">
                         <h1 class="font-black text-lg tracking-tight leading-none">AV.Storage</h1>
                         <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Enterprise</span>
