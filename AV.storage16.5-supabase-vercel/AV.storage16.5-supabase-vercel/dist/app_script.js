@@ -58,7 +58,7 @@
                             <svg viewBox="0 0 100 100" class="w-full h-full max-w-[220px] max-h-[220px]">
                                 <circle cx="50" cy="50" r="36" fill="none" stroke="${document.documentElement.classList.contains("dark") ? "#18181b" : "#f4f4f5"}" stroke-width="18"></circle>
                                 ${segments || ""}
-                                <circle cx="50" cy="50" r="18" fill="${document.documentElement.classList.contains("dark") ? "#09090b" : "#ffffff"}"></circle>
+                                <circle cx="50" cy="50" r="18" fill="${document.documentElement.classList.contains("dark") ? "#000000" : "#f3f4f7"}"></circle>
                             </svg>
                         </div>
                     </div>`

@@ -13,6 +13,9 @@ assertIncludes(html, "--av-magenta", "theme tokens");
 assertIncludes(html, "--av-bg", "theme tokens");
 assertIncludes(html, "--av-surface", "theme tokens");
 assertIncludes(html, "--av-card", "theme tokens");
+assertIncludes(html, "--av-bg: #000000", "dark neutral background should be canonical black");
+assert.ok(!html.includes("bg-[#050509]"), "loader should not use a separate near-black background");
+assert.ok(!html.includes("dark:bg-[#09090b]"), "login should not use a separate near-black background");
 assertIncludes(html, "--av-bg-soft: var(--av-bg)", "soft background should not create visible bands");
 assertIncludes(html, "--av-panel: var(--av-bg)", "panels should share the same neutral base");
 assertIncludes(html, "--av-surface: var(--av-bg)", "surfaces should share the same neutral base");
@@ -32,6 +35,9 @@ assertIncludes(html, "surface-card", "floating card surfaces");
 assert.ok(/\.surface-unified\s*\{[^}]*background:\s*var\(--av-bg\)/s.test(html), "unified surfaces should match the page/grid base");
 assert.ok(/\.surface-card\s*\{[^}]*background:\s*var\(--av-card\)/s.test(html), "cards should use the unified card token");
 assertIncludes(html, ".neutral-bg-sync", "main content neutral divs should be synchronized");
+assertIncludes(html, "solid-neutral-system", "whole app should synchronize neutral backgrounds");
+assertIncludes(html, 'id="app-view" class="solid-neutral-system', "app shell should use the neutral color system");
+assertIncludes(html, '.solid-neutral-system :is([class*="bg-white"]', "neutral Tailwind bg classes should be normalized");
 assert.ok(/#main-content\s*\{[^}]*background:\s*var\(--av-bg\)/s.test(html), "main content should use a single flat background");
 assert.ok(!html.includes("background: linear-gradient(180deg, var(--av-bg)"), "main content should not use a banding gradient");
 assert.ok(!/#main-content\s*\{[^}]*background-image/s.test(html), "main content must not use a grid background");
@@ -75,5 +81,6 @@ assertIncludes(script, "quality-state-good", "good quality button should be gree
 assertIncludes(script, "quality-state-replace", "replace quality button should be red");
 assertIncludes(script, "getDashboardHealthColors", "dashboard health colors should be explicit");
 assertIncludes(script, "#22c55e", "healthy dashboard chart should render green");
+assert.ok(!script.includes("#09090b"), "charts should not use a separate near-black fill");
 
 console.log("UI/performance checks passed.");

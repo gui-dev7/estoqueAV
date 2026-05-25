@@ -26,7 +26,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --av-black: #050509;
+            --av-black: #000000;
             --av-bg: #f3f4f7;
             --av-bg-soft: var(--av-bg);
             --av-panel: var(--av-bg);
@@ -48,7 +48,7 @@
             --av-glow: rgba(217, 70, 239, 0.18);
         }
         html.dark {
-            --av-bg: #050509;
+            --av-bg: #000000;
             --av-bg-soft: var(--av-bg);
             --av-panel: var(--av-bg);
             --av-panel-soft: var(--av-bg);
@@ -133,10 +133,21 @@
             background: var(--av-panel) !important;
             border-color: var(--av-border) !important;
         }
+        .solid-neutral-system,
+        .solid-neutral-system #main-content,
+        .solid-neutral-system .shell-header,
+        .solid-neutral-system .shell-nav,
+        .solid-neutral-system .context-header,
+        .solid-neutral-system .view-section,
         .neutral-bg-sync,
         .neutral-bg-sync .surface-card,
         .neutral-bg-sync .surface-panel,
         .neutral-bg-sync .surface-inset,
+        .solid-neutral-system :is([class*="bg-white"],
+        [class*="bg-zinc"],
+        [class*="bg-black"],
+        [class*="dark:bg-zinc"],
+        [class*="dark:bg-black"]):not([class*="bg-amber"]):not([class*="bg-fuchsia"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-blue"]):not([class*="rounded-full"]),
         .neutral-bg-sync div[class*="bg-white"]:not([class*="rounded-full"]),
         .neutral-bg-sync div[class*="bg-zinc-50"]:not([class*="rounded-full"]),
         .neutral-bg-sync div[class*="bg-zinc-100"]:not([class*="rounded-full"]),
@@ -342,7 +353,7 @@
 </head>
 <body class="bg-black text-zinc-100 overflow-hidden transition-colors duration-500">
         <!-- LOADER INICIAL -->
-        <div id="initial-loader" class="fixed inset-0 z-[200] bg-[#050509] flex flex-col items-center justify-center transition-opacity duration-700">
+        <div id="initial-loader" class="fixed inset-0 z-[200] bg-black flex flex-col items-center justify-center transition-opacity duration-700">
             <div class="av-loader-stage relative mb-8 flex h-40 w-40 items-center justify-center">
                 <div class="loader-orbit absolute inset-0 rounded-full border border-amber-400/20"></div>
                 <div class="loader-orbit absolute inset-5 rounded-full border border-fuchsia-400/10"></div>
@@ -395,7 +406,7 @@
         </script>
 
         <!-- LOGIN VIEW -->
-        <div id="login-view" class="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-50/95 dark:bg-[#09090b]/95 backdrop-blur-sm transition-all duration-500">
+        <div id="login-view" class="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-50/95 dark:bg-black/95 backdrop-blur-sm transition-all duration-500">
             <div class="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden animate-fade">
                 <div class="absolute top-0 left-0 w-full h-2 bg-amber-400"></div>
 
@@ -587,7 +598,7 @@
         </div>
 
         <!-- APP VIEW (Oculto inicial) -->
-        <div id="app-view" class="ambient-sheen flex flex-col h-screen w-full hidden opacity-0 transition-opacity duration-500">
+        <div id="app-view" class="solid-neutral-system ambient-sheen flex flex-col h-screen w-full hidden opacity-0 transition-opacity duration-500">
             <!-- HEADER (Antiga Sidebar convertida) -->
             <header class="shell-header w-full bg-black flex flex-wrap items-center gap-x-2 justify-between z-20 flex-shrink-0 px-4 sm:px-8 py-3 shrink-0">
                 
