@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const html = readFileSync("dist/index.html", "utf8");
 const script = readFileSync("dist/app_script.js", "utf8");
+const adapter = readFileSync("dist/supabase_adapter.js", "utf8");
+const rls = readFileSync("supabase/03_rls_policies.sql", "utf8");
 
 const assertIncludes = (source, expected, label) => {
   assert.ok(source.includes(expected), `${label}: expected to find ${expected}`);
@@ -85,5 +87,31 @@ assertIncludes(script, "quality-state-replace", "replace quality button should b
 assertIncludes(script, "getDashboardHealthColors", "dashboard health colors should be explicit");
 assertIncludes(script, "#22c55e", "healthy dashboard chart should render green");
 assert.ok(!script.includes("#09090b"), "charts should not use a separate near-black fill");
+assertIncludes(script, "escapeInlineJsString", "inline event arguments should be escaped");
+[
+  "${item.name}</",
+  "${user.email}</",
+  "${log.message}</",
+  "${room.equip.obs}</",
+  "${i.name}</"
+].forEach((unsafeInterpolation) => {
+  assert.ok(!script.includes(unsafeInterpolation), `user-controlled HTML should be escaped: ${unsafeInterpolation}`);
+});
+
+assertIncludes(adapter, "isOperatorOrPrivilegedRole", "adapter should align writable roles with the frontend");
+assert.ok(
+  /const\s+isStateWritableUser[\s\S]*isOperatorOrPrivilegedRole\(user\.role\)/.test(adapter),
+  "state persistence should allow active operator/admin sessions"
+);
+assert.ok(
+  /const\s+isWritableUser[\s\S]*isPrivilegedRole\(user\.role\)/.test(adapter),
+  "user management should remain restricted to admin/developer sessions"
+);
+["inventory", "movements", "logs", "infra", "settings", "sync_meta", "events"].forEach((policyName) => {
+  assertIncludes(rls, `${policyName}_write_operator_or_admin`, `RLS ${policyName} write policy`);
+});
+["profiles_write_admin", "session_collaborators_write_admin"].forEach((policyName) => {
+  assertIncludes(rls, policyName, `RLS ${policyName} privileged policy`);
+});
 
 console.log("UI/performance checks passed.");

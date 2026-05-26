@@ -84,10 +84,11 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "inventory_write_admin" on public.inventory_items;
-create policy "inventory_write_admin" on public.inventory_items
+drop policy if exists "inventory_write_operator_or_admin" on public.inventory_items;
+create policy "inventory_write_operator_or_admin" on public.inventory_items
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());
 
 drop policy if exists "movements_read_public" on public.inventory_movements;
 create policy "movements_read_public" on public.inventory_movements
@@ -95,10 +96,11 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "movements_write_admin" on public.inventory_movements;
-create policy "movements_write_admin" on public.inventory_movements
+drop policy if exists "movements_write_operator_or_admin" on public.inventory_movements;
+create policy "movements_write_operator_or_admin" on public.inventory_movements
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());
 
 drop policy if exists "logs_read_public" on public.activity_logs;
 create policy "logs_read_public" on public.activity_logs
@@ -106,10 +108,11 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "logs_write_admin" on public.activity_logs;
-create policy "logs_write_admin" on public.activity_logs
+drop policy if exists "logs_write_operator_or_admin" on public.activity_logs;
+create policy "logs_write_operator_or_admin" on public.activity_logs
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());
 
 drop policy if exists "infra_read_public" on public.infra_rooms;
 create policy "infra_read_public" on public.infra_rooms
@@ -117,10 +120,11 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "infra_write_admin" on public.infra_rooms;
-create policy "infra_write_admin" on public.infra_rooms
+drop policy if exists "infra_write_operator_or_admin" on public.infra_rooms;
+create policy "infra_write_operator_or_admin" on public.infra_rooms
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());
 
 drop policy if exists "settings_read_public" on public.system_settings;
 create policy "settings_read_public" on public.system_settings
@@ -128,10 +132,11 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "settings_write_admin" on public.system_settings;
-create policy "settings_write_admin" on public.system_settings
+drop policy if exists "settings_write_operator_or_admin" on public.system_settings;
+create policy "settings_write_operator_or_admin" on public.system_settings
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());
 
 
 
@@ -152,10 +157,11 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "sync_meta_write_admin" on public.sync_meta;
-create policy "sync_meta_write_admin" on public.sync_meta
+drop policy if exists "sync_meta_write_operator_or_admin" on public.sync_meta;
+create policy "sync_meta_write_operator_or_admin" on public.sync_meta
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());
 
 drop policy if exists "events_read_public" on public.change_events;
 create policy "events_read_public" on public.change_events
@@ -163,7 +169,8 @@ for select to anon, authenticated
 using (true);
 
 drop policy if exists "events_write_admin" on public.change_events;
-create policy "events_write_admin" on public.change_events
+drop policy if exists "events_write_operator_or_admin" on public.change_events;
+create policy "events_write_operator_or_admin" on public.change_events
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_operator_or_admin())
+with check (public.is_operator_or_admin());

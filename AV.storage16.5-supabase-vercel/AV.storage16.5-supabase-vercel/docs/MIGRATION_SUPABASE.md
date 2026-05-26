@@ -89,7 +89,8 @@ Arquivos:
 RLS foi aplicado para:
 
 - liberar leitura para `anon` e `authenticated` nas tabelas operacionais;
-- permitir escrita apenas para usuários autenticados cujo perfil vinculado esteja com `role = 'Administrador'` e `status = 'active'`.
+- permitir escrita operacional para usuários autenticados cujo perfil vinculado esteja ativo como `Administrador`, `Desenvolvedor` ou `Operador`;
+- manter gestão de perfis e colaboradores de sessão restrita a `Administrador` e `Desenvolvedor`.
 
 ## 6. Plano de migração por etapas
 

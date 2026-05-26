@@ -35,6 +35,7 @@
     return SESSION_COLLABORATORS.find((name) => normalizeComparableName(name) === wanted) || "";
   };
   const isPrivilegedRole = (role) => ["Administrador", "Desenvolvedor"].includes(normalizeRole(role));
+  const isOperatorOrPrivilegedRole = (role) => ["Administrador", "Desenvolvedor", "Operador"].includes(normalizeRole(role));
 
   const normalizeRole = (role) => {
     const value = cleanString(role).toLowerCase();
@@ -162,6 +163,11 @@
     return !!user && isPrivilegedRole(user.role);
   };
 
+  const isStateWritableUser = async () => {
+    const user = await currentSessionUser();
+    return !!user && isOperatorOrPrivilegedRole(user.role);
+  };
+
   const selectAll = async (table, queryBuilder) => {
     const supabase = getClient();
     const query = queryBuilder ? queryBuilder(supabase.from(table)) : supabase.from(table).select("*");
@@ -265,12 +271,16 @@
   };
 
   const persistState = async (incomingState, syncEvent) => {
-    if (!(await isWritableUser())) {
+    if (!(await isStateWritableUser())) {
       return apiError("Sua conta tem acesso somente de leitura.", 403);
     }
 
+    const user = await currentSessionUser();
     const supabase = getClient();
     const keys = Object.keys(incomingState || {}).filter((key) => ["inventory", "movements", "infraRooms", "settings", "activityLogs", "users"].includes(key));
+    if (keys.includes("users") && !isPrivilegedRole(user?.role)) {
+      return apiError("Somente administradores podem alterar utilizadores.", 403);
+    }
 
     if (keys.includes("inventory")) {
       await syncById("inventory_items", asArray(incomingState.inventory).map((item) => ({
@@ -356,7 +366,7 @@
       section: syncEvent?.section || keys[0] || "system",
       action: syncEvent?.action || "update",
       message: syncEvent?.message || "Algo foi alterado no sistema.",
-      actor_id: syncEvent?.actorId || (await currentSessionUser())?.name || "Sistema",
+      actor_id: syncEvent?.actorId || user?.name || "Sistema",
       target_user_id: syncEvent?.targetUserId || null,
       target_room_id: syncEvent?.targetRoomId || null,
       created_at: nowIso()
@@ -506,7 +516,7 @@
   };
 
   const handleInfraPatch = async (roomId, requestLike) => {
-    if (!(await isWritableUser())) return apiError("Sem permissão para alterar infraestrutura.", 403);
+    if (!(await isStateWritableUser())) return apiError("Sem permissão para alterar infraestrutura.", 403);
     const body = await readJsonBody(requestLike);
     const supabase = getClient();
     const { error } = await supabase.from("infra_rooms").update({ equip: body.equip || {}, updated_at: nowIso() }).eq("id", roomId);

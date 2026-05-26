@@ -80,7 +80,7 @@
                                 return `
                                     <div class="flex-1 min-w-0 flex flex-col justify-end items-center gap-2">
                                         <div class="w-full rounded-t-xl bg-amber-300/90" style="height:${height}%"></div>
-                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-center leading-tight">${labels[index] || ""}</div>
+                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-center leading-tight">${escapeHtml(labels[index] || "")}</div>
                                     </div>
                                 `;
                             })
@@ -122,6 +122,12 @@
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#39;");
             };
+            const escapeInlineJsString = (value) =>
+                escapeHtml(String(value ?? "")
+                    .replace(/\\/g, "\\\\")
+                    .replace(/'/g, "\\'")
+                    .replace(/\r/g, "\\r")
+                    .replace(/\n/g, "\\n"));
             if (typeof window !== "undefined") window.escapeHtml = escapeHtml;
             if (typeof window !== "undefined") window.__AV_BOOT_READY__ = false;
 
@@ -3017,14 +3023,14 @@
 
             const getMovementActorLine = (movement) => {
                 if (!movement) return "";
-                return `Usuário da sessão: ${resolveActorLabel(movement, "Não informado")}`;
+                return `Usuário da sessão: ${escapeHtml(resolveActorLabel(movement, "Não informado"))}`;
             };
 
             const getLatestWithdrawalName = (itemId) => {
                 const move = [...state.movements]
                     .filter((entry) => entry.itemId === itemId && entry.type === "out")
                     .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-                return move ? resolveActorLabel(move, "—") : "—";
+                return move ? escapeHtml(resolveActorLabel(move, "—")) : "—";
             };
 
             const createAssetUnit = (data = {}, index = 0) => {
@@ -3293,7 +3299,7 @@
                                     ${getDashboardIconSvg(isIn ? "arrow-down-left" : "arrow-up-right", "w-5 h-5")}
                                 </div>
                                 <div>
-                                    <p class="font-bold text-sm text-zinc-900 dark:text-white">${item?.name || "Item Excluído"}</p>
+                                    <p class="font-bold text-sm text-zinc-900 dark:text-white">${escapeHtml(item?.name || "Item Excluído")}</p>
                                     <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">${new Date(m.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} • ${getMovementActorLine(m)}</p>
                                 </div>
                             </div>
@@ -3399,14 +3405,14 @@
                 container.innerHTML = feed
                     .map(
                         (f) => `
-                    <div onclick="executeRadarAction('${f.type}', '${f.id}', '${f.param}')" class="interactive-surface flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 hover:border-fuchsia-400/50 cursor-pointer transition-colors group">
+                    <div onclick="executeRadarAction('${escapeInlineJsString(f.type)}', '${escapeInlineJsString(f.id)}', '${escapeInlineJsString(f.param)}')" class="interactive-surface flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 hover:border-fuchsia-400/50 cursor-pointer transition-colors group">
                         <div class="flex items-center space-x-4">
                             <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${f.bg} ${f.color}">
                                 ${getDashboardIconSvg(f.icon, "w-5 h-5")}
                             </div>
                             <div>
-                                <p class="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-amber-300 transition-colors">${f.title}</p>
-                                <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-0.5 line-clamp-1">${f.desc}</p>
+                                <p class="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-amber-300 transition-colors">${escapeHtml(f.title)}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-0.5 line-clamp-1">${escapeHtml(f.desc)}</p>
                             </div>
                         </div>
                         ${getDashboardIconSvg("chevron-right", "w-4 h-4 text-zinc-400 group-hover:text-amber-300 transition-colors flex-shrink-0 ml-2")}
@@ -3458,27 +3464,27 @@
                             const stats = getAssetIdentityStats(item);
                             const sampleUnits = getAssetUnits(item).filter((unit) => !unit.noIdentifier && (unit.patrimony || unit.serialNumber)).slice(0, 2);
                             return `
-                    <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group cursor-pointer" onclick="switchView('detail', '${item.id}')">
+                    <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group cursor-pointer" onclick="switchView('detail', '${escapeInlineJsString(item.id)}')">
                         <td class="px-6 py-4">
                             <div class="flex items-start space-x-3">
                                 <span class="text-xs font-mono text-zinc-400 font-bold w-4 pt-1">${idx + 1}</span>
                                 <div>
-                                    <span class="text-sm font-bold text-zinc-900 dark:text-white block">${item.name}</span>
+                                    <span class="text-sm font-bold text-zinc-900 dark:text-white block">${escapeHtml(item.name)}</span>
                                     <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mt-1">Usuário da sessão: ${getLatestWithdrawalName(item.id)}</span>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4"><span class="text-[10px] font-black uppercase bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 px-2 py-1 rounded-md tracking-wider">${item.category}</span></td>
+                        <td class="px-6 py-4"><span class="text-[10px] font-black uppercase bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 px-2 py-1 rounded-md tracking-wider">${escapeHtml(item.category)}</span></td>
                         <td class="px-6 py-4">
                             <div class="space-y-1">
                                 <span class="text-[10px] font-black uppercase tracking-widest ${stats.identified ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"}">${getAssetIdentitySummary(item)}</span>
-                                ${sampleUnits.length ? `<div class="text-[10px] font-bold text-zinc-500">${sampleUnits.map((unit) => `${unit.patrimony || "sem pat."} / ${unit.serialNumber || "sem serie"}`).join("<br>")}</div>` : ""}
+                                ${sampleUnits.length ? `<div class="text-[10px] font-bold text-zinc-500">${sampleUnits.map((unit) => `${escapeHtml(unit.patrimony || "sem pat.")} / ${escapeHtml(unit.serialNumber || "sem serie")}`).join("<br>")}</div>` : ""}
                             </div>
                         </td>
                         <td class="px-6 py-4 font-black text-lg ${item.quantity === 0 ? "text-fuchsia-500" : "text-zinc-900 dark:text-white"}">${item.quantity}</td>
                         <td class="px-6 py-4">${getStatusBadge(item.status)}</td>
                         <td class="px-6 py-4 text-right">
-                            ${canEditInventory() ? `<div class="inline-flex items-center gap-1"><button type="button" data-open-modal="in" data-item-id="${item.id}" class="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-lg transition-colors" title="Entrada"><i data-lucide="arrow-down-left" class="w-4 h-4"></i></button><button type="button" data-open-modal="out" data-item-id="${item.id}" class="p-2 bg-amber-400/10 text-amber-600 dark:text-amber-400 hover:bg-amber-400/20 rounded-lg transition-colors" title="Saída"><i data-lucide="arrow-up-right" class="w-4 h-4"></i></button><button type="button" data-open-modal="delete" data-item-id="${item.id}" class="p-2 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-500 hover:bg-fuchsia-500/20 rounded-lg transition-colors" title="Apagar"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Leitura</span>`}
+                            ${canEditInventory() ? `<div class="inline-flex items-center gap-1"><button type="button" data-open-modal="in" data-item-id="${escapeHtml(item.id)}" class="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-lg transition-colors" title="Entrada"><i data-lucide="arrow-down-left" class="w-4 h-4"></i></button><button type="button" data-open-modal="out" data-item-id="${escapeHtml(item.id)}" class="p-2 bg-amber-400/10 text-amber-600 dark:text-amber-400 hover:bg-amber-400/20 rounded-lg transition-colors" title="Saída"><i data-lucide="arrow-up-right" class="w-4 h-4"></i></button><button type="button" data-open-modal="delete" data-item-id="${escapeHtml(item.id)}" class="p-2 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-500 hover:bg-fuchsia-500/20 rounded-lg transition-colors" title="Apagar"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Leitura</span>`}
                         </td>
                     </tr>
                 `;
@@ -3511,8 +3517,8 @@
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Histórico completo</p>
-                                <h3 class="text-xl font-black text-zinc-900 dark:text-white">${selectedUser.id === state.currentUser?.id ? (state.currentUser?.name || selectedUser.name) : selectedUser.name}</h3>
-                                <p class="text-sm font-medium text-zinc-500 mt-1">${selectedUser.email} · ${normalizeRole(selectedUser.role)}</p>
+                                <h3 class="text-xl font-black text-zinc-900 dark:text-white">${escapeHtml(selectedUser.id === state.currentUser?.id ? (state.currentUser?.name || selectedUser.name) : selectedUser.name)}</h3>
+                                <p class="text-sm font-medium text-zinc-500 mt-1">${escapeHtml(selectedUser.email)} · ${escapeHtml(normalizeRole(selectedUser.role))}</p>
                             </div>
                             <div class="flex items-center gap-2">
                                 ${getRoleBadge(selectedUser.role)}
@@ -3527,13 +3533,13 @@
                                     <div class="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50/80 dark:bg-black/30">
                                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
                                             <div class="flex flex-wrap items-center gap-2">
-                                                <span class="px-2 py-1 rounded-md bg-zinc-900 text-white dark:bg-white dark:text-black text-[10px] font-black uppercase tracking-widest">${log.section}</span>
+                                                <span class="px-2 py-1 rounded-md bg-zinc-900 text-white dark:bg-white dark:text-black text-[10px] font-black uppercase tracking-widest">${escapeHtml(log.section)}</span>
                                                 <span class="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px] font-black uppercase tracking-widest">${isTarget ? "na conta" : "ação do usuário"}</span>
                                             </div>
                                             <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">${new Date(log.createdAt).toLocaleString("pt-BR")}</span>
                                         </div>
-                                        <p class="text-sm font-bold text-zinc-900 dark:text-white leading-relaxed">${log.message}</p>
-                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-3">Responsável: ${log?.actorName || log?.sessionName || actor?.name || log.actorId || "Sistema"}</p>
+                                        <p class="text-sm font-bold text-zinc-900 dark:text-white leading-relaxed">${escapeHtml(log.message)}</p>
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-3">Responsável: ${escapeHtml(log?.actorName || log?.sessionName || actor?.name || log.actorId || "Sistema")}</p>
                                     </div>
                                 `;
                             }).join("") : `<div class="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-sm font-semibold text-zinc-500 text-center">Nenhum log encontrado para este usuário.</div>`}
@@ -3593,11 +3599,11 @@
                     .map((user) => {
                         const isSelected = state.selectedUserLogId === user.id;
                         return `
-                        <tr onclick="openUserLogs('${user.id}')" class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer ${isSelected ? "bg-amber-400/5" : ""}">
+                        <tr onclick="openUserLogs('${escapeInlineJsString(user.id)}')" class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer ${isSelected ? "bg-amber-400/5" : ""}">
                             <td class="px-6 py-4">
                                 <div>
-                                    <p class="text-sm font-bold text-zinc-900 dark:text-white">${user.id === state.currentUser?.id ? (state.currentUser?.name || user.name) : user.name}</p>
-                                    <p class="text-[10px] uppercase tracking-widest font-black text-zinc-400 mt-1">${user.email}</p>
+                                    <p class="text-sm font-bold text-zinc-900 dark:text-white">${escapeHtml(user.id === state.currentUser?.id ? (state.currentUser?.name || user.name) : user.name)}</p>
+                                    <p class="text-[10px] uppercase tracking-widest font-black text-zinc-400 mt-1">${escapeHtml(user.email)}</p>
                                 </div>
                             </td>
                             <td class="px-6 py-4">${getRoleBadge(user.role)}</td>
@@ -3605,9 +3611,9 @@
                             <td class="px-6 py-4 text-sm font-bold text-zinc-500">${user.lastAccess ? new Date(user.lastAccess).toLocaleString("pt-BR") : "Nunca acessou"}</td>
                             <td class="px-6 py-4 text-right">
                                 <div class="inline-flex items-center gap-2">
-                                    ${canManageUsers() ? `<button onclick="event.stopPropagation(); openModal('user-edit', '${user.id}')" class="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-amber-400 rounded-lg transition-colors" title="Editar">${getActionIcon("pencil")}</button>` : ``}
-                                    <button onclick="event.stopPropagation(); openUserLogs('${user.id}')" class="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-fuchsia-500 rounded-lg transition-colors" title="Ver logs">${getActionIcon("logs")}</button>
-                                    ${canManageUsers() && user.id !== state.currentUser?.id ? `<button onclick="event.stopPropagation(); toggleUserStatus('${user.id}')" class="p-2 ${user.status === "active" ? "bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500/20" : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"} rounded-lg transition-colors" title="${user.status === "active" ? "Desativar" : "Ativar"}">${getActionIcon(user.status === "active" ? "userX" : "userCheck")}</button>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">${user.id === state.currentUser?.id ? "Sessão atual" : "Somente leitura"}</span>`}
+                                    ${canManageUsers() ? `<button onclick="event.stopPropagation(); openModal('user-edit', '${escapeInlineJsString(user.id)}')" class="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-amber-400 rounded-lg transition-colors" title="Editar">${getActionIcon("pencil")}</button>` : ``}
+                                    <button onclick="event.stopPropagation(); openUserLogs('${escapeInlineJsString(user.id)}')" class="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-fuchsia-500 rounded-lg transition-colors" title="Ver logs">${getActionIcon("logs")}</button>
+                                    ${canManageUsers() && user.id !== state.currentUser?.id ? `<button onclick="event.stopPropagation(); toggleUserStatus('${escapeInlineJsString(user.id)}')" class="p-2 ${user.status === "active" ? "bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500/20" : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"} rounded-lg transition-colors" title="${user.status === "active" ? "Desativar" : "Ativar"}">${getActionIcon(user.status === "active" ? "userX" : "userCheck")}</button>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">${user.id === state.currentUser?.id ? "Sessão atual" : "Somente leitura"}</span>`}
                                 </div>
                             </td>
                         </tr>
@@ -3676,12 +3682,12 @@
                 container.innerHTML = state.purchaseNeeds
                     .map(
                         (item, idx) => `
-                    <div draggable="true" ondragstart="handleDragStart(event, '${item.id}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${item.id}')" ondragend="handleDragEnd(event)" class="interactive-surface bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-5 rounded-[2rem] flex items-center justify-between group hover:border-amber-400 transition-all cursor-grab active:cursor-grabbing">
+                    <div draggable="true" ondragstart="handleDragStart(event, '${escapeInlineJsString(item.id)}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${escapeInlineJsString(item.id)}')" ondragend="handleDragEnd(event)" class="interactive-surface bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-5 rounded-[2rem] flex items-center justify-between group hover:border-amber-400 transition-all cursor-grab active:cursor-grabbing">
                         <div class="flex items-center space-x-6">
                             <div class="text-zinc-300 dark:text-zinc-700 ml-2"><i data-lucide="grip-vertical" class="w-5 h-5"></i></div>
                             <div class="w-14 h-14 bg-amber-400/10 text-amber-600 dark:text-amber-400 flex items-center justify-center rounded-2xl font-black text-2xl">${item.manualPurchaseQty}</div>
                             <div>
-                                <h4 class="font-bold text-lg text-zinc-900 dark:text-white">${item.name}</h4>
+                                <h4 class="font-bold text-lg text-zinc-900 dark:text-white">${escapeHtml(item.name)}</h4>
                                 <div class="flex items-center mt-1 space-x-4">
                                     <p class="text-[10px] text-zinc-500 uppercase tracking-widest font-black"><i data-lucide="package" class="w-3 h-3 inline mr-1"></i> Em Estoque: ${item.quantity}</p>
                                     <p class="text-[10px] ${item.deadline ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"} uppercase tracking-widest font-black"><i data-lucide="calendar" class="w-3 h-3 inline mr-1"></i> Prazo: ${item.deadline ? new Date(item.deadline + "T00:00:00").toLocaleDateString("pt-BR") : "Livre"}</p>
@@ -3693,7 +3699,7 @@
                                 <p class="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Estimativa</p>
                                 <p class="font-bold text-zinc-900 dark:text-white">R$ ${(item.manualPurchaseQty * item.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                             </div>
-                            ${canManagePurchases() ? `<button onclick="cancelPurchase('${item.id}')" class="p-3 bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500 hover:text-white rounded-xl transition-all" title="Remover"><i data-lucide="x" class="w-4 h-4"></i></button>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Leitura</span>`}
+                            ${canManagePurchases() ? `<button onclick="cancelPurchase('${escapeInlineJsString(item.id)}')" class="p-3 bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500 hover:text-white rounded-xl transition-all" title="Remover"><i data-lucide="x" class="w-4 h-4"></i></button>` : `<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Leitura</span>`}
                         </div>
                     </div>
                 `,
@@ -3797,7 +3803,7 @@
                                         <h3 class="text-lg font-black text-zinc-900 dark:text-white">${escapeHtml(record.itemName)}</h3>
                                         <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-1">${escapeHtml(identity)}</p>
                                     </div>
-                                    ${record.status !== "returned" && canEditInventory() ? `<button onclick="completeMaintenance('${record.id}')" class="px-3 py-2 rounded-xl bg-amber-400/10 text-amber-300 text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 hover:text-black transition-colors">Retornou</button>` : ""}
+                                    ${record.status !== "returned" && canEditInventory() ? `<button onclick="completeMaintenance('${escapeInlineJsString(record.id)}')" class="px-3 py-2 rounded-xl bg-amber-400/10 text-amber-300 text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 hover:text-black transition-colors">Retornou</button>` : ""}
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
                                     <div class="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/70 dark:bg-black/30">
@@ -3975,8 +3981,8 @@
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Histórico da sala</p>
-                                <h3 class="text-xl font-black text-zinc-900 dark:text-white">${room.name}</h3>
-                                <p class="text-sm font-medium text-zinc-500 mt-1">${room.floor} · ${room.unit === 3 ? "Setores" : `Unidade ${room.unit}`}</p>
+                                <h3 class="text-xl font-black text-zinc-900 dark:text-white">${escapeHtml(room.name)}</h3>
+                                <p class="text-sm font-medium text-zinc-500 mt-1">${escapeHtml(room.floor)} · ${room.unit === 3 ? "Setores" : `Unidade ${room.unit}`}</p>
                             </div>
                             <button onclick="state.selectedRoomLogId = null; renderInfraRoomHistoryPanel()" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-black uppercase tracking-widest text-zinc-500 hover:border-amber-400 transition-colors">Fechar</button>
                         </div>
@@ -3986,11 +3992,11 @@
                                 return `
                                     <div class="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50/80 dark:bg-black/30">
                                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                                            <span class="px-2 py-1 rounded-md bg-zinc-900 text-white dark:bg-white dark:text-black text-[10px] font-black uppercase tracking-widest">${log.action === "room-update" ? "Atualização" : log.action}</span>
+                                            <span class="px-2 py-1 rounded-md bg-zinc-900 text-white dark:bg-white dark:text-black text-[10px] font-black uppercase tracking-widest">${escapeHtml(log.action === "room-update" ? "Atualização" : log.action)}</span>
                                             <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">${new Date(log.createdAt).toLocaleString("pt-BR")}</span>
                                         </div>
-                                        <p class="text-sm font-bold text-zinc-900 dark:text-white leading-relaxed">${log.message}</p>
-                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-3">Responsável: ${log?.actorName || log?.sessionName || actor?.name || log.actorId || "Sistema"}</p>
+                                        <p class="text-sm font-bold text-zinc-900 dark:text-white leading-relaxed">${escapeHtml(log.message)}</p>
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-3">Responsável: ${escapeHtml(log?.actorName || log?.sessionName || actor?.name || log.actorId || "Sistema")}</p>
                                     </div>
                                 `;
                             }).join("") : `<div class="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-sm font-semibold text-zinc-500 text-center">Nenhum histórico encontrado para esta sala.</div>`}
@@ -4048,7 +4054,7 @@
                         const floorRooms = grouped[floor];
                         return `
                         <div>
-                            <h3 class="infra-floor-title text-xs font-black uppercase tracking-[0.2em] text-zinc-400 mb-4 pb-2">${floor}</h3>
+                            <h3 class="infra-floor-title text-xs font-black uppercase tracking-[0.2em] text-zinc-400 mb-4 pb-2">${escapeHtml(floor)}</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 ${floorRooms
                                     .map((room) => {
@@ -4058,10 +4064,10 @@
                                         const statusIndicator = getRoomStatusIndicator(room);
 
                                         return `
-                                    <div id="room-${room.id}" class="interactive-surface surface-card soft-glow room-card border ${borderColor} p-5 rounded-2xl transition-all duration-200 group relative">
+                                    <div id="room-${escapeHtml(room.id)}" class="interactive-surface surface-card soft-glow room-card border ${borderColor} p-5 rounded-2xl transition-all duration-200 group relative">
                                         <div class="flex justify-between items-start gap-3 mb-4">
                                             <div>
-                                                <h4 class="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-amber-300 transition-colors">${room.name}</h4>
+                                                <h4 class="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-amber-300 transition-colors">${escapeHtml(room.name)}</h4>
                                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-1">${activeCount} item${activeCount === 1 ? "" : "s"} mapeado${activeCount === 1 ? "" : "s"}</p>
                                             </div>
                                             ${statusIndicator}
@@ -4072,15 +4078,15 @@
                                                     (entry) => `
                                                 <div class="surface-inset rounded-2xl border ${entry.meta.card} px-3 py-3 min-h-[92px] flex flex-col justify-between">
                                                     <div class="flex items-center justify-between gap-2">
-                                                        <span class="text-[10px] font-black uppercase tracking-widest text-zinc-500">${entry.label}</span>
+                                                        <span class="text-[10px] font-black uppercase tracking-widest text-zinc-500">${escapeHtml(entry.label)}</span>
                                                         <i data-lucide="${entry.icon}" class="w-3.5 h-3.5 text-zinc-400"></i>
                                                     </div>
                                                     <div class="mt-2">
-                                                        <p class="text-xs font-bold text-zinc-900 dark:text-white leading-tight break-words">${entry.value || "Ausente"}</p>
+                                                        <p class="text-xs font-bold text-zinc-900 dark:text-white leading-tight break-words">${escapeHtml(entry.value || "Ausente")}</p>
                                                     </div>
                                                     <div class="mt-3 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest w-fit ${entry.meta.badge}">
                                                         <span class="w-2 h-2 rounded-full ${entry.meta.dot}"></span>
-                                                        ${entry.meta.label}
+                                                        ${escapeHtml(entry.meta.label)}
                                                     </div>
                                                 </div>
                                             `,
@@ -4091,16 +4097,16 @@
                                             room.equip.obs
                                                 ? `<div class="surface-inset mt-4 rounded-2xl px-3 py-2">
                                                     <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Observações</p>
-                                                    <p class="text-xs font-bold text-zinc-600 dark:text-zinc-300 break-words">${room.equip.obs}</p>
+                                                    <p class="text-xs font-bold text-zinc-600 dark:text-zinc-300 break-words">${escapeHtml(room.equip.obs)}</p>
                                                 </div>`
                                                 : ""
                                         }
                                         <div class="mt-4 flex items-center justify-between gap-3">
-                                            <button onclick="event.stopPropagation(); openRoomHistory('${room.id}')" class="surface-inset soft-glow flex-1 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2">
+                                            <button onclick="event.stopPropagation(); openRoomHistory('${escapeInlineJsString(room.id)}')" class="surface-inset soft-glow flex-1 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2">
                                                 <i data-lucide="history" class="w-4 h-4"></i>
                                                 Histórico
                                             </button>
-                                            ${canEditInfra() ? `<button onclick="event.stopPropagation(); openModal('edit-room', '${room.id}')" class="flex-1 px-3 py-2 rounded-xl bg-amber-400 text-black text-xs font-black uppercase tracking-widest hover:bg-amber-500 transition-colors flex items-center justify-center gap-2">${getActionIcon("pencil")}Editar</button>` : ``}
+                                            ${canEditInfra() ? `<button onclick="event.stopPropagation(); openModal('edit-room', '${escapeInlineJsString(room.id)}')" class="flex-1 px-3 py-2 rounded-xl bg-amber-400 text-black text-xs font-black uppercase tracking-widest hover:bg-amber-500 transition-colors flex items-center justify-center gap-2">${getActionIcon("pencil")}Editar</button>` : ``}
                                         </div>
                                     </div>
                                     `;
@@ -4228,14 +4234,14 @@
                         <div class="absolute left-0 top-0 bottom-0 w-2 bg-amber-400"></div>
                         <div class="pl-4">
                             <div class="flex items-center space-x-4 mb-2">
-                                <h2 class="text-3xl font-black text-zinc-900 dark:text-white">${item.name}</h2>
+                                <h2 class="text-3xl font-black text-zinc-900 dark:text-white">${escapeHtml(item.name)}</h2>
                                 ${getStatusBadge(item.status)}
                             </div>
-                            <p class="font-bold text-zinc-500 uppercase tracking-widest text-xs">${item.category}</p>
+                            <p class="font-bold text-zinc-500 uppercase tracking-widest text-xs">${escapeHtml(item.category)}</p>
                         </div>
                         <div class="flex space-x-3">
-                            <button type="button" data-open-modal="edit" data-item-id="${item.id}" class="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center"><i data-lucide="edit-2" class="w-4 h-4 mr-2"></i> Editar</button>
-                            <button type="button" data-open-modal="delete" data-item-id="${item.id}" class="px-5 py-2.5 rounded-xl border border-fuchsia-200 dark:border-fuchsia-500/20 text-fuchsia-600 font-bold text-sm hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/10 transition-colors flex items-center"><i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Excluir</button>
+                            <button type="button" data-open-modal="edit" data-item-id="${escapeHtml(item.id)}" class="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center"><i data-lucide="edit-2" class="w-4 h-4 mr-2"></i> Editar</button>
+                            <button type="button" data-open-modal="delete" data-item-id="${escapeHtml(item.id)}" class="px-5 py-2.5 rounded-xl border border-fuchsia-200 dark:border-fuchsia-500/20 text-fuchsia-600 font-bold text-sm hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/10 transition-colors flex items-center"><i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Excluir</button>
                         </div>
                     </div>
 
@@ -4248,7 +4254,7 @@
                         <div class="md:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] p-8 grid grid-cols-2 gap-8 shadow-sm">
                             <div>
                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Categoria</p>
-                                <p class="text-xl font-bold bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 inline-block">${item.category}</p>
+                                <p class="text-xl font-bold bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 inline-block">${escapeHtml(item.category)}</p>
                             </div>
                             <div>
                                 <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Preço Base Unitário</p>
@@ -4260,8 +4266,8 @@
                                 <p class="text-xs font-bold text-zinc-500 mt-1">${assetStats.nullCount} unidade${assetStats.nullCount === 1 ? "" : "s"} marcada${assetStats.nullCount === 1 ? "" : "s"} como nula${assetStats.nullCount === 1 ? "" : "s"}.</p>
                             </div>
                             <div class="col-span-2 flex space-x-4">
-                                <button type="button" data-open-modal="in" data-item-id="${item.id}" class="flex-1 bg-amber-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-600 transition-colors shadow-lg shadow-amber-400/20 flex justify-center items-center"><i data-lucide="arrow-down-left" class="w-4 h-4 mr-2"></i> Registrar Entrada (+)</button>
-                                <button type="button" data-open-modal="out" data-item-id="${item.id}" class="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex justify-center items-center"><i data-lucide="arrow-up-right" class="w-4 h-4 mr-2"></i> Registrar Saída (-)</button>
+                                <button type="button" data-open-modal="in" data-item-id="${escapeHtml(item.id)}" class="flex-1 bg-amber-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-600 transition-colors shadow-lg shadow-amber-400/20 flex justify-center items-center"><i data-lucide="arrow-down-left" class="w-4 h-4 mr-2"></i> Registrar Entrada (+)</button>
+                                <button type="button" data-open-modal="out" data-item-id="${escapeHtml(item.id)}" class="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex justify-center items-center"><i data-lucide="arrow-up-right" class="w-4 h-4 mr-2"></i> Registrar Saída (-)</button>
                             </div>
                         </div>
                     </div>
@@ -4272,7 +4278,7 @@
                                 <h3 class="font-bold text-sm uppercase tracking-widest text-zinc-400">Patrimonios e numeros de serie</h3>
                                 <p class="text-xs font-semibold text-zinc-500 mt-1">Uma linha por unidade atualmente em estoque.</p>
                             </div>
-                            <button type="button" data-open-modal="edit" data-item-id="${item.id}" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-black uppercase tracking-widest text-zinc-500 hover:border-amber-400 transition-colors">Editar identificacao</button>
+                            <button type="button" data-open-modal="edit" data-item-id="${escapeHtml(item.id)}" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-black uppercase tracking-widest text-zinc-500 hover:border-amber-400 transition-colors">Editar identificacao</button>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                             ${assetUnits.length ? assetUnits.map((unit, index) => `
@@ -4314,7 +4320,7 @@
                                         <td class="py-4 font-bold text-sm">${new Date(m.date).toLocaleString("pt-BR")}</td>
                                         <td class="py-4"><span class="px-2 py-1 text-[10px] font-black uppercase rounded ${m.type === "in" ? "bg-amber-500/10 text-amber-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"}">${m.type === "in" ? "Entrada" : "Saída"}</span></td>
                                         <td class="py-4 font-black text-lg ${m.type === "in" ? "text-amber-500" : "text-zinc-900 dark:text-white"}">${m.type === "in" ? "+" : "-"}${m.quantity}</td>
-                                        <td class="py-4 font-bold text-zinc-500 text-sm">${resolveActorLabel(m, "Não informado")}</td>
+                                        <td class="py-4 font-bold text-zinc-500 text-sm">${escapeHtml(resolveActorLabel(m, "Não informado"))}</td>
                                     </tr>
                                 `,
                                               )
@@ -4432,7 +4438,7 @@
                         <form id="modal-form" class="space-y-6">
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Nome do Produto</label>
-                                <input id="f-name" value="${item?.name || ""}" placeholder="Ex: Cabo de Força..." class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" required />
+                                <input id="f-name" value="${escapeHtml(item?.name || "")}" placeholder="Ex: Cabo de Força..." class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" required />
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -4467,7 +4473,7 @@ ${getSessionActorMarkup("Usuário da sessão")}
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Selecione o Item</label>
                                 <select id="f-select-item" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none font-bold" required>
                                     <option value="" disabled selected>Escolha um produto da lista...</option>
-                                    ${[...state.inventory].sort((a, b) => a.name.localeCompare(b.name)).map((i) => `<option value="${i.id}">${i.name} (Estoque: ${i.quantity})</option>`).join("")}
+                                        ${[...state.inventory].sort((a, b) => a.name.localeCompare(b.name)).map((i) => `<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)} (Estoque: ${i.quantity})</option>`).join("")}
                                 </select>
                             </div>
                             <div>
@@ -4489,7 +4495,7 @@ ${getSessionActorMarkup("Usuário da sessão")}`}
                         <div class="bg-zinc-50 dark:bg-black p-8 rounded-[2rem] text-center mb-6 border border-zinc-200 dark:border-zinc-800">
                             <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Estoque Atual</p>
                             <h4 class="text-5xl font-black ${item.quantity === 0 ? "text-fuchsia-500" : ""}">${item.quantity}</h4>
-                            <p class="text-sm font-bold text-zinc-500 mt-2">${item.name}</p>
+                            <p class="text-sm font-bold text-zinc-500 mt-2">${escapeHtml(item.name)}</p>
                         </div>
                         <form id="modal-form" class="space-y-4">
                             <input id="f-qty" type="number" min="1" max="${type === "out" ? item.quantity : ""}" placeholder="Qual a quantidade?" oninput="${type === "in" ? "renderAssetIdentityFields('f-qty')" : ""}" class="w-full p-6 bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-2xl outline-none focus:border-amber-400 text-3xl font-black text-center" required />
@@ -4507,7 +4513,7 @@ ${getSessionActorMarkup("Usuário da sessão")}`}
                     body = `
                         <form id="modal-form" class="text-center py-6">
                             <div class="w-20 h-20 bg-fuchsia-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-fuchsia-500"><i data-lucide="alert-triangle" class="w-10 h-10"></i></div>
-                            <p class="font-bold text-lg mb-2">Excluir "${item.name}"?</p>
+                            <p class="font-bold text-lg mb-2">Excluir "${escapeHtml(item.name)}"?</p>
                             <p class="text-sm text-zinc-500 font-medium mb-8">Esta ação removerá o item da base permanentemente.</p>
                             <div class="mb-6 flex flex-col items-center">
                                 ${getSessionActorMarkup("Usuário da sessão")}
@@ -4526,7 +4532,7 @@ ${getSessionActorMarkup("Usuário da sessão")}`}
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Selecione o Item</label>
                                 <select id="f-purchase-item" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none font-bold" required>
                                     <option value="" disabled selected>Escolha um produto...</option>
-                                    ${state.inventory.map((i) => `<option value="${i.id}">${i.name} (Atual: ${i.quantity})</option>`).join("")}
+                                    ${state.inventory.map((i) => `<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)} (Atual: ${i.quantity})</option>`).join("")}
                                 </select>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
@@ -4555,7 +4561,7 @@ ${getSessionActorMarkup("Usuário da sessão")}
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Item do estoque</label>
                                 <select id="f-maint-item" onchange="refreshMaintenanceUnitOptions()" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" required>
                                     <option value="" disabled ${firstItemId ? "" : "selected"}>${firstItemId ? "Escolha um item..." : "Nenhum item disponivel em estoque"}</option>
-                                    ${stockItems.map((entry) => `<option value="${entry.id}" ${entry.id === firstItemId ? "selected" : ""}>${entry.name} (${entry.quantity} un.)</option>`).join("")}
+                                    ${stockItems.map((entry) => `<option value="${escapeHtml(entry.id)}" ${entry.id === firstItemId ? "selected" : ""}>${escapeHtml(entry.name)} (${entry.quantity} un.)</option>`).join("")}
                                 </select>
                             </div>
                             <div>
@@ -4597,9 +4603,9 @@ ${getSessionActorMarkup("Usuário da sessão")}
                         <div class="space-y-4">
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Destinatário</label>
-                                <input id="f-email-to" type="email" value="${state.settings.buyerEmail}" class="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 p-3 rounded-xl outline-none font-bold" required />
+                                <input id="f-email-to" type="email" value="${escapeHtml(state.settings.buyerEmail)}" class="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 p-3 rounded-xl outline-none font-bold" required />
                             </div>
-                            <textarea id="f-email-body" rows="8" class="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl outline-none font-medium text-sm leading-relaxed">${bodyStr}</textarea>
+                            <textarea id="f-email-body" rows="8" class="w-full bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl outline-none font-medium text-sm leading-relaxed">${escapeHtml(bodyStr)}</textarea>
                             <button onclick="sendEmail()" class="w-full bg-amber-400 text-black py-4 rounded-2xl font-black mt-4 uppercase text-xs tracking-widest shadow-xl shadow-amber-400/20 flex items-center justify-center hover:scale-[1.02] transition-transform"><i data-lucide="send" class="w-4 h-4 mr-2"></i> Abrir App de E-mail</button>
                         </div>
                     `;
@@ -4617,8 +4623,8 @@ ${getSessionActorMarkup("Usuário da sessão")}
 
                     body = `
                         <div class="text-center mb-6">
-                            <h4 class="text-xl font-black">${room.name}</h4>
-                            <p class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">${room.floor} - ${room.unit === 3 ? "Setores" : "Unidade " + room.unit}</p>
+                            <h4 class="text-xl font-black">${escapeHtml(room.name)}</h4>
+                            <p class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">${escapeHtml(room.floor)} - ${room.unit === 3 ? "Setores" : "Unidade " + room.unit}</p>
                         </div>
                         <form id="modal-form" class="space-y-5">
                             ${EQUIPMENT_CONFIG.map((config) => {
@@ -4629,21 +4635,21 @@ ${getSessionActorMarkup("Usuário da sessão")}
                                             <label class="text-[10px] font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2"><i data-lucide="${config.icon}" class="w-3.5 h-3.5"></i>${config.label}</label>
                                             <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">${config.short}</span>
                                         </div>
-                                        <input id="f-room-${config.key}" value="${room.equip[config.key] || ""}" class="w-full bg-white dark:bg-black p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold text-sm" placeholder="Nome / modelo do ${config.label.toLowerCase()}..." />
+                                        <input id="f-room-${config.key}" value="${escapeHtml(room.equip[config.key] || "")}" class="w-full bg-white dark:bg-black p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold text-sm" placeholder="Nome / modelo do ${config.label.toLowerCase()}..." />
                                         <div class="grid grid-cols-4 gap-2 mt-3">
                                             ${renderQualityButton(config.key, "good", "Verde")}
                                             ${renderQualityButton(config.key, "keep", "Amarelo")}
                                             ${renderQualityButton(config.key, "replace", "Vermelho")}
                                             ${renderQualityButton(config.key, "absent", "Cinza")}
                                         </div>
-                                        <input type="hidden" id="f-room-${config.key}-quality" value="${qualityValue}" />
+                                        <input type="hidden" id="f-room-${config.key}-quality" value="${escapeHtml(qualityValue)}" />
                                         <div class="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Verde: bom · Amarelo: dá pra manter · Vermelho: trocar · Cinza: ausente</div>
                                     </div>
                                 `;
                             }).join("")}
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-1.5 block tracking-widest"><i data-lucide="message-square" class="w-3 h-3 inline mr-1"></i> Observações Técnicas</label>
-                                <input id="f-room-obs" value="${room.equip.obs || ""}" class="w-full bg-zinc-50 dark:bg-black p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold text-sm" placeholder="Defeitos, pendências..." />
+                                <input id="f-room-obs" value="${escapeHtml(room.equip.obs || "")}" class="w-full bg-zinc-50 dark:bg-black p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold text-sm" placeholder="Defeitos, pendências..." />
                             </div>
                             <div class="pt-1">
                                 ${getSessionActorMarkup("Usuário da sessão")}
@@ -4662,11 +4668,11 @@ ${getSessionActorMarkup("Usuário da sessão")}
                         <form id="modal-form" class="space-y-4">
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">Nome</label>
-                                <input id="f-user-name" value="${user?.name || ""}" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" placeholder="Nome completo" required />
+                                <input id="f-user-name" value="${escapeHtml(user?.name || "")}" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" placeholder="Nome completo" required />
                             </div>
                             <div>
                                 <label class="text-[10px] font-black uppercase text-zinc-400 mb-2 block tracking-widest">E-mail</label>
-                                <input id="f-user-email" type="email" value="${user?.email || ""}" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" placeholder="email@empresa.com" required />
+                                <input id="f-user-email" type="email" value="${escapeHtml(user?.email || "")}" class="w-full bg-zinc-50 dark:bg-black p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:border-amber-400 font-bold" placeholder="email@empresa.com" required />
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -4959,14 +4965,14 @@ ${getSessionActorMarkup("Usuário da sessão")}
                 res.innerHTML = filtered
                     .map(
                         (i) => `
-                    <div onclick="closeSearch(); switchView('detail', '${i.id}')" class="p-6 bg-zinc-800/50 hover:bg-zinc-800 rounded-3xl flex justify-between items-center cursor-pointer transition-all border border-zinc-800 hover:border-amber-400 group">
+                    <div onclick="closeSearch(); switchView('detail', '${escapeInlineJsString(i.id)}')" class="p-6 bg-zinc-800/50 hover:bg-zinc-800 rounded-3xl flex justify-between items-center cursor-pointer transition-all border border-zinc-800 hover:border-amber-400 group">
                         <div class="flex items-center space-x-4">
                             <div class="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center group-hover:bg-amber-400/10 group-hover:text-amber-400 transition-colors">
                                 <i data-lucide="package" class="w-5 h-5"></i>
                             </div>
                             <div>
-                                <span class="font-bold text-white block">${i.name}</span>
-                                <span class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">${i.category}</span>
+                                <span class="font-bold text-white block">${escapeHtml(i.name)}</span>
+                                <span class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">${escapeHtml(i.category)}</span>
                             </div>
                         </div>
                         <span class="text-xl font-black ${i.quantity === 0 ? "text-fuchsia-500" : "text-zinc-300 group-hover:text-amber-400"}">${i.quantity}</span>
